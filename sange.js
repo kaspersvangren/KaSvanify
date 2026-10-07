@@ -44,7 +44,7 @@ const SAMLINGER = [
     navn: "Andre sange",
     mappe: "sange/andet",
     sange: [
-      // "Kunstner - Titel",
+      "ViLmLs - Superbruger"
     ]
   }
 ];
