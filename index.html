@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.10 -->
+<!-- KaSvanify v1.11 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -31,7 +31,21 @@ svg{display:block}
 header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;position:relative;z-index:31}
 .brand{display:flex;align-items:baseline;gap:8px}
 .vtag{font-size:.68rem;font-weight:600;color:rgba(255,255,255,.26);letter-spacing:.04em}
-body.at-home #openList{visibility:hidden}
+body.at-home #openList{display:none}
+body.at-home header{background:rgba(11,11,16,.84);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 1px 0 var(--line)}
+.mini{display:flex;align-items:center;gap:8px;min-width:0}
+.mini-info{display:flex;align-items:center;gap:10px;text-align:left;min-width:0;max-width:280px;padding:2px 6px 2px 2px;border-radius:10px;transition:background .2s}
+.mini-info:hover{background:rgba(255,255,255,.07)}
+.mini-info img{width:42px;height:42px;border-radius:7px;object-fit:cover;flex:none;background:rgba(255,255,255,.08)}
+.mini-info span{min-width:0}
+.mini-info b{display:block;font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-info small{display:block;font-size:.75rem;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini .icon-btn{width:40px;height:40px}
+.mini .mplay{width:42px;height:42px;border-radius:50%;background:#fff;color:#0b0b10;display:grid;place-items:center;flex:none}
+.mini .mplay svg{width:20px;height:20px}
+.miniprog{position:absolute;left:0;right:0;bottom:0;height:2px}
+.miniprog i{display:block;height:100%;width:0;background:var(--a1)}
+@media (max-width:560px){ .mini-info span,#miniPrev{display:none} .mini{gap:4px} }
 .logo{font-weight:800;font-size:1.4rem;letter-spacing:-.03em;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
 .logo .svan{color:var(--a1);transition:color .8s}
 .pill{display:inline-flex;gap:8px;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(255,255,255,.09);font-size:.9rem;font-weight:600;transition:background .2s}
@@ -219,6 +233,13 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
 <div class="app">
   <header>
     <div class="brand"><div class="logo" id="logo">Ka<span class="svan">Svan</span>ify</div><span class="vtag" id="vtag"></span></div>
+    <div class="mini" id="mini" hidden>
+      <button class="mini-info" id="miniInfo" title="Gå til afspilleren"><img id="miniCover" alt=""><span><b id="miniTitle"></b><small id="miniArtist"></small></span></button>
+      <button class="icon-btn" id="miniPrev" aria-label="Forrige"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM9.5 12 20 18V6z"/></svg></button>
+      <button class="mplay" id="miniPlay" aria-label="Afspil eller pause"><svg viewBox="0 0 24 24" fill="currentColor"><path id="miniIcon" d="M8 5v14l11-7z"/></svg></button>
+      <button class="icon-btn" id="miniNext" aria-label="Næste"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM4 18l10.5-6L4 6z"/></svg></button>
+    </div>
+    <div class="miniprog" id="miniProg" hidden><i id="miniBar"></i></div>
     <button class="pill" id="openList" aria-label="Vis sange">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Sange
     </button>
@@ -779,13 +800,17 @@ function loadSong(i, play){
   $('#npTitle').textContent = s.title;
   $('#npArtist').textContent = (s.artist ? s.artist + ' · ' : '') + s.coll.navn;
   $('#startTitle').textContent = s.title; $('#startArtist').textContent = s.artist;
-  document.title = s.title + ' · KaSvanify';
-  if (location.hash.slice(1) !== s.slug) history.replaceState(null, '', '#' + s.slug);
+  if ($('#home').hidden){
+    document.title = s.title + ' · KaSvanify';
+    if (location.hash.slice(1) !== s.slug) history.replaceState(null, '', '#' + s.slug);
+  }
   variant = hashStr(s.base) % VARIANTS.length; needClear = true;
   $('#lyrics').dataset.ws = hashStr(s.base + '·ord') % 3;
   sExit = hashStr(s.base + '·ud') % 3; sceneReset();
   fxSongMode = FX_AUTO[hashStr(s.base + '·fx') % FX_AUTO.length]; fx = null; updFxBtn();   // scenens udgang: 0 falder ned, 1 eksploderer, 2 suges ind   // ordenes indgang: 0 stiger op, 1 falder ned, 2 zoomer ind
   document.querySelectorAll('.row-song').forEach(b => b.classList.toggle('current', +b.dataset.i === cur));
+  document.querySelectorAll('.card').forEach(c => c.classList.toggle('current', +c.dataset.i === cur));
+  updMini();
   updateMediaSession(s);
   loadLyrics(s);
   if (play) doPlay();
@@ -803,8 +828,8 @@ function step(dir){
   if (dir < 0 && audio.currentTime > 3){ audio.currentTime = 0; return; }
   loadSong(cur + dir, started);
 }
-audio.addEventListener('play',  () => { $('#playIcon').setAttribute('d','M6 5h4v14H6zM14 5h4v14h-4z'); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
-audio.addEventListener('pause', () => { $('#playIcon').setAttribute('d','M8 5v14l11-7z'); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
+audio.addEventListener('play',  () => { $('#playIcon').setAttribute('d','M6 5h4v14H6zM14 5h4v14h-4z'); $('#miniIcon').setAttribute('d','M6 5h4v14H6zM14 5h4v14h-4z'); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+audio.addEventListener('pause', () => { $('#playIcon').setAttribute('d','M8 5v14l11-7z'); $('#miniIcon').setAttribute('d','M8 5v14l11-7z'); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
 audio.addEventListener('ended', () => {
   if ($('#tap').classList.contains('open')){ if (tap.state === 'run') toast('Sangen sluttede, før alle linjer fik en tid'); return; }
   const nx = songs[cur+1];
@@ -1187,16 +1212,28 @@ function showHome(){
   closePanels(); $('#pin').hidden = true;
   $('#home').hidden = false; document.body.classList.add('at-home'); $('#start').classList.add('gone');
   document.querySelectorAll('.card').forEach(c => c.classList.toggle('current', +c.dataset.i === cur));
-  const r = $('#homeResume');
-  if (cur >= 0){ r.hidden = false; r.querySelector('span').textContent = 'Tilbage til ' + songs[cur].title; } else r.hidden = true;
+  $('#homeResume').hidden = true; updMini();
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   document.title = 'KaSvanify'; $('#home').scrollTop = 0;
 }
 function hideHome(){
-  $('#home').hidden = true; document.body.classList.remove('at-home');
+  $('#home').hidden = true; document.body.classList.remove('at-home'); updMini();
   if (cur >= 0){ const s = songs[cur]; if (location.hash.slice(1) !== s.slug) history.replaceState(null, '', '#' + s.slug); document.title = s.title + ' · KaSvanify'; }
 }
 $('#homeResume').addEventListener('click', () => { hideHome(); if (audio.paused) doPlay(); });
+/* Minispiller i topbjælken på forsiden */
+function updMini(){
+  const show = !$('#home').hidden && cur >= 0;
+  $('#mini').hidden = !show; $('#miniProg').hidden = !show;
+  if (!show) return;
+  const s = songs[cur];
+  if (s.jpg) $('#miniCover').src = s.jpg; else $('#miniCover').removeAttribute('src');
+  $('#miniTitle').textContent = s.title; $('#miniArtist').textContent = s.artist;
+}
+$('#miniInfo').addEventListener('click', () => hideHome());
+$('#miniPlay').addEventListener('click', togglePlay);
+$('#miniPrev').addEventListener('click', () => step(-1));
+$('#miniNext').addEventListener('click', () => step(1));
 logo.addEventListener('click', () => { if (!lpFired) showHome(); });
 $('#btnRing').addEventListener('click', () => {
   let v; do { v = Math.floor(Math.random()*VARIANTS.length); } while (v === variant && VARIANTS.length > 1);
@@ -1512,11 +1549,12 @@ function frame(ms){
   const ct = audio.currentTime || 0;
   if (!seeking && audio.duration){ seek.value = Math.round(ct/audio.duration*1000); seek.style.setProperty('--v', (ct/audio.duration*100) + '%'); $('#tCur').textContent = fmt(ct); }
   updateLyrics(ct);
+  if (!$('#miniProg').hidden && audio.duration) $('#miniBar').style.width = (ct/audio.duration*100) + '%';
   drawScene(ms);
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.10';
+const VERSION = '1.11';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
 requestAnimationFrame(frame);
 (async function init(){
