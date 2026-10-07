@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.14 -->
+<!-- KaSvanify v1.15 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -1574,12 +1574,56 @@ function fxExitStart(k){
   return it.nextReal ? it.end - Math.min(.45, (it.end - it.t)*.3) : it.end;
 }
 // Tekst med glød – tung på svage enheder, så den forenkles efter kvalitetsniveau
+/* ---------- Tekst-billeder ----------
+   Sløring (glød og røg) er det tungeste, en telefon kan tegne. Derfor tegnes hvert ord og bogstav kun én gang
+   som et lille billede med gløden indbygget, og derefter bliver billedet bare sat ind – det er hurtigt overalt. */
+const sprites = new Map();
+function spriteScale(){ return Math.min(maxDpr(), window.devicePixelRatio || 1); }
+function makeSprite(key, t, px, draw, pad){
+  let sp = sprites.get(key); if (sp) return sp;
+  if (sprites.size > 600) sprites.clear();
+  const k = spriteScale(), font = '700 ' + px + 'px Sora, system-ui, sans-serif';
+  const mc = makeSprite.mc || (makeSprite.mc = document.createElement('canvas').getContext('2d'));
+  mc.font = font; const tw = Math.ceil(mc.measureText(t).width) || 1;
+  const w = tw + pad*2, h = Math.ceil(px*1.5) + pad*2, c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w*k)); c.height = Math.max(1, Math.ceil(h*k));
+  const x = c.getContext('2d'); x.scale(k, k); x.font = font; x.textAlign = 'center'; x.textBaseline = 'middle';
+  draw(x, w/2, h/2, k);
+  sp = {c, w, h}; sprites.set(key, sp); return sp;
+}
+const qc = c => (Math.round(c[0]/24)*24) + ',' + (Math.round(c[1]/24)*24) + ',' + (Math.round(c[2]/24)*24);
+function glowSprite(t, px){   // glød + mørk skygge, uden selve teksten
+  const gc = qc(col1);
+  return makeSprite('g|' + gc + '|' + px + '|' + Q + '|' + t, t, px, (x, cx, cy, k) => {
+    x.fillStyle = '#fff';
+    x.shadowColor = 'rgba(0,0,0,.75)'; x.shadowBlur = 12*k; x.fillText(t, cx, cy);
+    x.shadowColor = 'rgba(' + gc + ',.85)'; x.shadowBlur = 20*k; x.fillText(t, cx, cy); x.fillText(t, cx, cy);
+    x.globalCompositeOperation = 'destination-out'; x.shadowColor = 'transparent'; x.fillText(t, cx, cy);
+  }, Math.ceil(px*.6));
+}
+function fillSprite(t, px, fill){
+  return makeSprite('f|' + fill + '|' + px + '|' + t, t, px, (x, cx, cy) => {
+    if (Q === 2){ x.lineJoin = 'round'; x.lineWidth = Math.max(2, px*.09); x.strokeStyle = 'rgba(0,0,0,.55)'; x.strokeText(t, cx, cy); }
+    x.fillStyle = fill; x.fillText(t, cx, cy);
+  }, 4);
+}
+function blitSprite(sp, a){ if (a <= 0) return; const ga = sg.globalAlpha; sg.globalAlpha = ga*a; sg.drawImage(sp.c, -sp.w/2, -sp.h/2, sp.w, sp.h); sg.globalAlpha = ga; }
 function glowText(t, fill, glow, px){
-  sg.fillStyle = fill;
-  if (Q === 2){ sg.lineJoin = 'round'; sg.lineWidth = Math.max(2, px*.09); sg.strokeStyle = 'rgba(0,0,0,.55)'; sg.strokeText(t, 0, 0); sg.fillText(t, 0, 0); return; }
-  if (Q === 1){ sg.shadowColor = glow || 'rgba(0,0,0,.7)'; sg.shadowBlur = 10; sg.fillText(t, 0, 0); return; }
-  sg.shadowColor = 'rgba(0,0,0,.75)'; sg.shadowBlur = 14; sg.fillText(t, 0, 0);
-  if (glow){ sg.shadowColor = glow; sg.shadowBlur = 12 + bassP*22; sg.fillText(t, 0, 0); }
+  if (glow && Q < 2) blitSprite(glowSprite(t, px), .65 + bassP*.35);   // gløden pulserer med bassen via gennemsigtighed
+  blitSprite(fillSprite(t, px, fill), 1);
+}
+function smokeSprite(ch, px, lvl){   // bogstav som røg i fire grader af sløring
+  return makeSprite('s|' + lvl + '|' + px + '|' + ch, ch, px, (x, cx, cy, k) => {
+    const blur = [1.5, .14, .32, .62][lvl]*(lvl ? px : 1);
+    x.shadowColor = 'rgba(225,225,236,.95)'; x.shadowBlur = blur*k; x.shadowOffsetX = 10000*k; x.fillStyle = '#000'; x.fillText(ch, cx - 10000, cy);
+  }, Math.ceil(px*.9));
+}
+let puffSp = null;
+function puffSprite(){
+  if (puffSp) return puffSp;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g2 = x.createRadialGradient(32,32,0,32,32,32);
+  g2.addColorStop(0, 'rgba(215,215,228,.55)'); g2.addColorStop(.5, 'rgba(215,215,228,.2)'); g2.addColorStop(1, 'rgba(215,215,228,0)');
+  x.fillStyle = g2; x.fillRect(0,0,64,64); return puffSp = {c, w:64, h:64};
 }
 function fxText(l, list){
   sg.font = '700 ' + l.px + 'px Sora, system-ui, sans-serif'; sg.textAlign = 'center'; sg.textBaseline = 'middle';
@@ -1588,23 +1632,23 @@ function fxText(l, list){
     if (o.a <= 0) return;
     sg.save(); sg.globalAlpha = clamp(o.a, 0, 1); sg.translate(o.x, o.y); if (o.r) sg.rotate(o.r);
     if (o.sx || o.sy) sg.scale(o.sx || 1, o.sy || 1);
-    if (o.cursor){ sg.shadowColor = glow; sg.shadowBlur = 10; sg.fillStyle = '#fff'; sg.fillRect(-l.px*.04, -l.px*.45, l.px*.08, l.px*.9); sg.restore(); return; }
-    if (o.puff){   // røgdot: en blød, sløret plet
+    if (o.cursor){ sg.fillStyle = '#fff'; sg.fillRect(-l.px*.04, -l.px*.45, l.px*.08, l.px*.9); sg.restore(); return; }
+    if (o.puff){   // røgdot: en blød plet
       if (Q === 2){ sg.restore(); return; }
-      const m = sg.getTransform(), k2 = Math.hypot(m.a, m.b);
-      sg.shadowColor = 'rgba(215,215,228,' + clamp(o.a, 0, 1)*.6 + ')'; sg.shadowBlur = o.rad*2.2*k2; sg.shadowOffsetX = m.a*10000; sg.shadowOffsetY = m.b*10000;
-      sg.fillStyle = '#000'; sg.beginPath(); sg.arc(-10000, 0, o.rad, 0, Math.PI*2); sg.fill(); sg.restore(); return;
+      const sp = puffSprite(), d = o.rad*2.6; sg.drawImage(sp.c, -d/2, -d/2, d, d); sg.restore(); return;
     }
-    if (o.smoke != null && Q === 2){   // let udgave af røg: bogstavet blegner og bliver gråt
-      sg.fillStyle = 'rgba(225,225,236,' + (1 - clamp(o.smoke, 0, 1)*.5) + ')'; sg.fillText(o.t, 0, 0); sg.restore(); return;
-    }
-    if (o.smoke != null){   // røg: bogstavet tegnes som sin egen slørede skygge, så det opløses i stedet for at blive en klump
+    if (o.smoke != null){   // røg: bogstavet glider over i mere og mere slørede udgaver af sig selv
       const sm = clamp(o.smoke, 0, 1);
-      if (sm < .35){ sg.globalAlpha = clamp(o.a, 0, 1)*(1 - sm/.35); sg.shadowColor = rgba(col1, .6); sg.shadowBlur = 10; sg.fillStyle = '#fff'; sg.fillText(o.t, 0, 0); sg.globalAlpha = clamp(o.a, 0, 1); }
-      // skyggens forskydning måles i skærmpunkter, så den regnes om efter den aktuelle drejning og skalering
-      const m = sg.getTransform(), k2 = Math.hypot(m.a, m.b);
-      sg.shadowColor = 'rgba(225,225,236,' + (.95 - sm*.35) + ')'; sg.shadowBlur = (2 + sm*sm*l.px*(Q ? .45 : .9))*k2; sg.shadowOffsetX = m.a*10000; sg.shadowOffsetY = m.b*10000;
-      sg.fillStyle = '#000'; sg.fillText(o.t, -10000, 0);
+      const ga = sg.globalAlpha;
+      if (sm < .35){ sg.globalAlpha = ga*(1 - sm/.35); glowText(o.t, '#fff', glow, l.px); sg.globalAlpha = ga*(sm/.35); }   // starter som almindelig tekst
+      if (Q === 2){ blitSprite(fillSprite(o.t, l.px, 'rgba(225,225,236,' + (1 - sm*.5).toFixed(2) + ')'), 1); }
+      else {
+        const f = sm*3, lo = Math.min(3, 1 + Math.floor(f)), hi = Math.min(3, lo + 1), mixF = f - Math.floor(f);
+        blitSprite(smokeSprite(o.t, l.px, lo), lo === hi ? 1 : 1 - mixF);
+        if (lo !== hi) blitSprite(smokeSprite(o.t, l.px, hi), mixF);
+      }
+    } else if (o.direct){   // meget store forstørrelser (zoom) tegnes direkte, så de ikke bliver uskarpe
+      sg.fillStyle = '#fff'; sg.fillText(o.t, 0, 0);
     } else {
       glowText(o.t, '#fff', glow, l.px);
     }
@@ -1719,7 +1763,7 @@ function drawFx(T){
     if (zoom){
       const c = Math.cos(l.r), s = Math.sin(l.r), zx = l.cx + l.zp.x*c - l.zp.y*s, zy = l.cy + l.zp.x*s + l.zp.y*c;
       sg.translate(zx, zy); sg.scale(zoom, zoom); sg.translate(-zx, -zy); sg.translate(l.cx, l.cy); sg.rotate(l.r);
-      fxText(l, l.ws.map(w => ({t:w.t, x:w.x, y:w.y, a:alpha})));
+      fxText(l, l.ws.map(w => ({t:w.t, x:w.x, y:w.y, a:alpha, direct: zoom > 2.5})));
     } else if (hinge){
       const pvx = (l.side === 'R' ? 1 : -1)*l.bw/2, pvy = l.bh/2 - l.lh*.1, c = Math.cos(l.r), s = Math.sin(l.r);
       sg.translate(l.cx + pvx*c - pvy*s, l.cy + pvx*s + pvy*c + hinge.drop); sg.rotate(l.r + hinge.th); sg.translate(-pvx, -pvy);
@@ -1736,8 +1780,8 @@ function drawFx(T){
 }
 
 // Når skrifttypen er hentet, måles teksten igen – ellers kan linjerne blive bredere end målt og gå ud over kanten
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (fx) fx.cache = {}; sLayout(false); });
-if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', () => { if (fx) fx.cache = {}; sLayout(false); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (fx) fx.cache = {}; sprites.clear(); sLayout(false); });
+if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', () => { if (fx) fx.cache = {}; sprites.clear(); sLayout(false); });
 
 try { if (localStorage.getItem('ksv-view') === 'scene') setView(true, true); } catch(e){}
 
@@ -1745,11 +1789,12 @@ try { if (localStorage.getItem('ksv-view') === 'scene') setView(true, true); } c
 const perf = {last:0, n:0, sum:0, t0:0, cool:0, skip:false, pulse:'', pl:'', gb:'', idle:true, upAt:-1e9, noUp:false, good:0};
 function setQ(q){
   Q = q; applyQ(); try { localStorage.setItem('ksv-q', String(Q)); } catch(e){}
-  for (const k in vz) delete vz[k]; resize(); sResize(); if (fx) fx.cache = {};
+  for (const k in vz) delete vz[k]; sprites.clear(); resize(); sResize(); if (fx) fx.cache = {};
 }
 function watchFps(ms){
   const dt = ms - perf.last; perf.last = ms;
-  if (document.hidden || audio.paused || dt <= 0 || dt > 250){ perf.n = 0; perf.sum = 0; perf.t0 = ms; perf.idle = true; return; }
+  // kun lange huller (fx en skjult fane) tæller som pause – langsomme billeder skal netop tælle med
+  if (document.hidden || audio.paused || dt <= 0 || dt > 1500){ perf.n = 0; perf.sum = 0; perf.t0 = ms; perf.idle = true; return; }
   if (perf.idle){ perf.idle = false; perf.cool = ms + 3000; perf.t0 = ms; }   // de første sekunder efter start tæller ikke (indlæsning)
   perf.n++; perf.sum += dt;
   if (ms - perf.t0 > 2500){
@@ -1788,7 +1833,7 @@ function frame(ms){
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.14';
+const VERSION = '1.15';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
 applyQ();
 requestAnimationFrame(frame);
