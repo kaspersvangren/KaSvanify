@@ -32,7 +32,7 @@ Filnavnene skal passe præcist med det, der står i `sange.js` – også store o
 
 ## Lav teksten med tap
 
-1. Åbn sangen på siden og tryk på tekst-knappen nederst til venstre.
+1. Åbn sangen på siden, hold fingeren eller musen på KaSvanify-logoet i et sekund, og skriv koden (står i `sange.js` som `TAP_KODE`).
 2. Indsæt teksten – én sunget linje per linje. Skriv `-` på en linje, hvor teksten skal forsvinde (fx en solo).
 3. Tryk **Start**, og tryk mellemrum (eller den store knap) hver gang en linje begynder.
    Backspace fortryder. Klik på en linje i listen for at tappe igen fra den.

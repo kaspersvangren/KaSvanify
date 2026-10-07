@@ -4,11 +4,16 @@
 // I sangens mappe skal der ligge:
 //   "Kunstner - Titel.mp3"   lyden
 //   "Kunstner - Titel.jpg"   coveret (.png virker også)
-//   "Kunstner - Titel.lrc"   teksten med tider (laves med Tekst-knappen på siden)
+//   "Kunstner - Titel.lrc"   teksten med tider (laves i tap-tilstanden på siden)
 // Store og små bogstaver skal passe præcist – GitHub skelner mellem dem.
 //
 // "grundtekst" er valgfri: en almindelig tekstfil i samlingens mappe,
 // som tap-tilstanden kan hente som udgangspunkt for alle sange i samlingen.
+
+// Kode til tap-tilstanden (hold på KaSvanify-logoet i et sekund for at åbne den).
+// Skift den til din egen. Sæt den til "" for at slå koden fra.
+// Bemærk: Filen er offentlig, så koden holder kun nysgerrige ude – ikke nogen, der leder.
+const TAP_KODE = "1234";
 
 const SAMLINGER = [
   {

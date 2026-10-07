@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.0 -->
+<!-- KaSvanify v1.1 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -29,7 +29,7 @@ svg{display:block}
 
 .app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto 1fr auto}
 header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px}
-.logo{font-weight:800;font-size:1.4rem;letter-spacing:-.03em}
+.logo{font-weight:800;font-size:1.4rem;letter-spacing:-.03em;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
 .logo .svan{color:var(--a1);transition:color .8s}
 .pill{display:inline-flex;gap:8px;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(255,255,255,.09);font-size:.9rem;font-weight:600;transition:background .2s}
 .pill:hover{background:rgba(255,255,255,.16)}
@@ -43,7 +43,7 @@ main{display:grid;grid-template-columns:1fr 1fr;gap:28px;min-height:0;padding:0 
 .left{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;gap:18px}
 .stage{position:relative;width:min(100%,calc(100vh - 290px),580px);width:min(100%,calc(100dvh - 290px),580px);aspect-ratio:1;--pulse:1}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%}
-.cover{position:absolute;left:27%;top:27%;width:46%;height:46%;border-radius:50%;object-fit:cover;box-shadow:0 18px 60px rgba(0,0,0,.65);transform:scale(var(--pulse));will-change:transform;background:linear-gradient(135deg,var(--a1),var(--a2))}
+.cover{position:absolute;left:29%;top:29%;width:42%;height:42%;border-radius:7%;object-fit:cover;box-shadow:0 18px 60px rgba(0,0,0,.65);transform:scale(var(--pulse));will-change:transform;background:linear-gradient(135deg,var(--a1),var(--a2))}
 .np{text-align:center;max-width:100%}
 #npTitle{font-size:1.45rem;font-weight:700;letter-spacing:-.01em}
 #npArtist{color:var(--dim);font-size:.95rem;margin-top:4px}
@@ -123,12 +123,20 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
 .start{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:rgba(6,6,12,.55);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);cursor:pointer;transition:opacity .4s}
 .start.gone{opacity:0;pointer-events:none}
 .start-card{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:24px}
-.start-card img{width:min(240px,56vw);aspect-ratio:1;border-radius:50%;object-fit:cover;box-shadow:0 20px 70px rgba(0,0,0,.6);background:linear-gradient(135deg,var(--a1),var(--a2))}
+.start-card img{width:min(240px,56vw);aspect-ratio:1;border-radius:7%;object-fit:cover;box-shadow:0 20px 70px rgba(0,0,0,.6);background:linear-gradient(135deg,var(--a1),var(--a2))}
 .start-card .kicker{color:var(--dim);font-size:.8rem;text-transform:uppercase;letter-spacing:.16em}
 .start-card h1{font-size:1.7rem;font-weight:800;letter-spacing:-.02em}
 .start-card p{color:var(--dim)}
 .start-card .play{margin-top:8px;width:72px;height:72px}
 
+.pin{position:fixed;inset:0;z-index:45;display:grid;place-items:center;background:rgba(5,5,10,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.pin-card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;width:min(320px,90vw);text-align:center}
+.pin-card h2{font-size:1.05rem;font-weight:700;margin-bottom:14px}
+.pin-card input{width:100%;font:inherit;font-size:1.6rem;letter-spacing:.4em;text-align:center;padding:10px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--fg);outline:none}
+.pin-card input:focus{border-color:var(--a1)}
+.pin-card .btnrow{justify-content:center;margin-top:16px}
+.shake{animation:shake .35s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 .toast{position:fixed;left:50%;bottom:120px;transform:translate(-50%,20px);background:rgba(20,20,30,.95);border:1px solid var(--line);padding:10px 18px;border-radius:999px;font-size:.9rem;opacity:0;transition:opacity .3s,transform .3s;z-index:50;pointer-events:none;max-width:90vw;text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
@@ -154,7 +162,7 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
 
 <div class="app">
   <header>
-    <div class="logo">Ka<span class="svan">Svan</span>ify</div>
+    <div class="logo" id="logo">Ka<span class="svan">Svan</span>ify</div>
     <button class="pill" id="openList" aria-label="Vis sange">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Sange
     </button>
@@ -172,7 +180,6 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
       <div class="lyrics-inner" id="lyricsInner"></div>
       <div class="nolyrics" id="noLyrics" hidden>
         <p>Ingen tekst til denne sang endnu.</p>
-        <button class="pill" id="noLyricsTap">Lav den med tap</button>
       </div>
     </section>
   </main>
@@ -188,9 +195,6 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
         <button class="icon-btn" id="btnShare" title="Del link til sangen" aria-label="Del">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
         </button>
-        <button class="icon-btn" id="btnTap" title="Lav tekst med tap" aria-label="Tekst">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h11M4 18h7"/><circle cx="19" cy="17" r="2.5"/></svg>
-        </button>
       </div>
       <div class="mid">
         <button class="icon-btn" id="btnPrev" aria-label="Forrige"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM9.5 12 20 18V6z"/></svg></button>
@@ -198,8 +202,8 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
         <button class="icon-btn" id="btnNext" aria-label="Næste"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM4 18l10.5-6L4 6z"/></svg></button>
       </div>
       <div class="side r">
-        <button class="icon-btn" id="btnRing" title="Skift ring" aria-label="Skift ring">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>
+        <button class="icon-btn" id="btnRing" title="Skift visualisering" aria-label="Skift visualisering">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
         </button>
         <div class="vol">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="opacity:.7"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -216,7 +220,7 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
   <div class="panel-head"><h2>Sange</h2>
     <button class="icon-btn" data-close aria-label="Luk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
-  <div class="panel-body"><div id="songList"></div><div class="ver">KaSvanify v1.0</div></div>
+  <div class="panel-body"><div id="songList"></div><div class="ver">KaSvanify v1.1</div></div>
 </aside>
 
 <aside class="tap" id="tap" aria-label="Tap tekst">
@@ -270,6 +274,13 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
   </div>
 </div>
 
+<div class="pin" id="pin" hidden>
+  <form class="pin-card" id="pinForm" autocomplete="off">
+    <h2>Kode</h2>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="12" aria-label="Kode">
+    <div class="btnrow"><button type="button" class="pill" id="pinCancel">Annullér</button><button type="submit" class="pill primary">OK</button></div>
+  </form>
+</div>
 <div class="toast" id="toast"></div>
 <audio id="audio" preload="metadata" playsinline></audio>
 
@@ -766,8 +777,29 @@ $('#btnPlay').addEventListener('click', togglePlay);
 $('#btnPrev').addEventListener('click', () => step(-1));
 $('#btnNext').addEventListener('click', () => step(1));
 $('#btnShare').addEventListener('click', share);
-$('#btnTap').addEventListener('click', openTap);
-$('#noLyricsTap').addEventListener('click', openTap);
+
+/* Skjult indgang til tap-tilstanden: hold på logoet i et sekund, og skriv koden fra sange.js */
+const PIN = (typeof TAP_KODE !== 'undefined' && TAP_KODE != null) ? String(TAP_KODE).trim() : '';
+let unlocked = false; try { unlocked = sessionStorage.getItem('ksv-tap') === '1'; } catch(e){}
+function requestTap(){
+  if (!songs.length) return;
+  if (!PIN || unlocked){ openTap(); return; }
+  $('#pin').hidden = false; $('#pinInput').value = ''; setTimeout(() => $('#pinInput').focus(), 50);
+}
+$('#pinForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if ($('#pinInput').value.trim() === PIN){
+    unlocked = true; try { sessionStorage.setItem('ksv-tap','1'); } catch(err){}
+    $('#pin').hidden = true; openTap();
+  } else {
+    const c = $('.pin-card'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake'); $('#pinInput').value = '';
+  }
+});
+$('#pinCancel').addEventListener('click', () => { $('#pin').hidden = true; });
+const logo = $('#logo'); let lpTimer;
+logo.addEventListener('pointerdown', () => { clearTimeout(lpTimer); lpTimer = setTimeout(requestTap, 900); });
+['pointerup','pointerleave','pointercancel'].forEach(ev => logo.addEventListener(ev, () => clearTimeout(lpTimer)));
+logo.addEventListener('contextmenu', e => e.preventDefault());
 $('#openList').addEventListener('click', () => openPanel('#drawer'));
 $('#btnRing').addEventListener('click', () => {
   let v; do { v = Math.floor(Math.random()*VARIANTS.length); } while (v === variant && VARIANTS.length > 1);
@@ -776,7 +808,7 @@ $('#btnRing').addEventListener('click', () => {
 $('#start').addEventListener('click', doPlay);
 document.addEventListener('keydown', e => {
   const tag = (e.target.tagName || '').toLowerCase();
-  if (e.key === 'Escape'){ closePanels(); return; }
+  if (e.key === 'Escape'){ closePanels(); $('#pin').hidden = true; return; }
   if (tag === 'textarea' || (tag === 'input' && e.target.type !== 'range')) return;
   const tapRun = $('#tap').classList.contains('open') && tap.state === 'run';
   if (e.code === 'Space'){
@@ -801,7 +833,7 @@ function frame(ms){
   $('#lyrics').style.setProperty('--pl', (1 + bassP*.035).toFixed(3));
   const w = cv.width, h = cv.height;
   if (needClear){ g.globalCompositeOperation = 'source-over'; g.clearRect(0,0,w,h); needClear = false; }
-  const u = w/600, R = w*.23*pulse + 5*u;
+  const u = w/600, R = w*.21*pulse + 3*u;   // starter lige bag coverets sider – hjørnerne dækker de korteste udslag
   VARIANTS[variant].draw({cx:w/2, cy:h/2, R, maxL:w*.5 - R - 6*u, t, u, w, h});
   g.globalCompositeOperation = 'source-over';
   const ct = audio.currentTime || 0;
