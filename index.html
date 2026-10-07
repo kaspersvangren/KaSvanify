@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.13 -->
+<!-- KaSvanify v1.14 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -86,6 +86,8 @@ body.scene .fxbtn{display:grid!important}
 .line.active{opacity:1;transform:scale(1.04);scale:var(--pl);color:#fff}
 .line .w{display:inline-block}
 .line.active .w{text-shadow:0 0 var(--gb,14px) var(--glow,rgba(255,122,89,.6));animation-duration:.45s;animation-fill-mode:both}
+body.q1 .line,body.q2 .line{filter:none!important}
+body.q2 .line.active .w{text-shadow:0 0 8px var(--glow,rgba(255,122,89,.6))}
 .lyrics[data-ws="0"] .line.active .w{animation-name:wUp;animation-timing-function:cubic-bezier(.2,1.4,.4,1)}
 .lyrics[data-ws="1"] .line.active .w{animation-name:wDrop;animation-duration:.5s;animation-timing-function:cubic-bezier(.3,1.5,.5,1)}
 .lyrics[data-ws="2"] .line.active .w{animation-name:wZoom;animation-timing-function:ease-out}
@@ -584,7 +586,14 @@ function setColors(cs){
 /* ---------- Visualisering ---------- */
 const cv = $('#viz'), g = cv.getContext('2d'), stage = $('#stage');
 let dpr = 1, variant = 0, needClear = true;
-function resize(){ dpr = Math.min(2, window.devicePixelRatio || 1); const r = cv.getBoundingClientRect();
+/* ---------- Automatisk kvalitet ----------
+   Siden måler selv, hvor mange billeder i sekundet enheden klarer, og skruer gradvist ned, hvis den ikke kan følge med.
+   0 = fuld, 1 = lettere (lavere opløsning, én glød), 2 = let (30 billeder/sek., ingen sløring). Niveauet huskes. */
+let Q = 0; try { Q = clamp(parseInt(localStorage.getItem('ksv-q') || '0', 10) || 0, 0, 2); } catch(e){}
+const COARSE = matchMedia('(pointer:coarse)').matches;
+function maxDpr(){ return Q === 2 ? 1 : Q === 1 ? 1.25 : (COARSE ? 1.5 : 2); }
+function applyQ(){ document.body.classList.toggle('q1', Q === 1); document.body.classList.toggle('q2', Q === 2); }
+function resize(){ dpr = Math.min(maxDpr(), window.devicePixelRatio || 1); const r = cv.getBoundingClientRect();
   cv.width = Math.max(1, Math.round(r.width*dpr)); cv.height = Math.max(1, Math.round(r.height*dpr)); needClear = true; }
 new ResizeObserver(resize).observe(cv);
 
@@ -740,7 +749,7 @@ const VARIANTS = [
       g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0,0,w,h);
       g.globalCompositeOperation = 'lighter';
       let e = 0; for (let i = 0; i < NB*.7; i++) e += bands[i]; e /= NB*.7;
-      if (!vz.stars){ vz.stars = []; for (let i = 0; i < 260; i++) vz.stars.push({a:Math.random()*Math.PI*2, d:Math.random(), s:.4 + Math.random()*.8}); }
+      if (!vz.stars){ vz.stars = []; for (let i = 0, n = [260,150,90][Q]; i < n; i++) vz.stars.push({a:Math.random()*Math.PI*2, d:Math.random(), s:.4 + Math.random()*.8}); }
       const maxD = Math.min(w, h)/2*.97, spd = .004 + e*.05 + bassP*.03;
       vz.stars.forEach(st => {
         const d0 = R*.85 + st.d*(maxD - R*.85);
@@ -773,7 +782,7 @@ const VARIANTS = [
       const {cx,cy,R,maxL,t,u,w,h} = P;
       g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(0,0,w,h);
       g.globalCompositeOperation = 'lighter';
-      if (!vz.gal){ vz.gal = []; for (let i = 0; i < 340; i++) vz.gal.push({arm:i % 3, r:Math.pow(Math.random(), .8), j:(Math.random()-.5)*.5, z:Math.random()}); }
+      if (!vz.gal){ vz.gal = []; for (let i = 0, n = [340,200,120][Q]; i < n; i++) vz.gal.push({arm:i % 3, r:Math.pow(Math.random(), .8), j:(Math.random()-.5)*.5, z:Math.random()}); }
       let mids = 0; for (let i = 20; i < 80; i++) mids += bands[i]; mids /= 60;
       vz.gal.forEach(p => {
         const v = bands[Math.min(NB-1, Math.floor(p.r*NB*.8))];
@@ -1357,7 +1366,7 @@ const scv = $('#sceneCv'), sg = scv.getContext('2d');
 let sW = 0, sH = 0, sCX = 0, sCY = 0, sWords = [], sExit = 0, sCurText = null, viewScene = false;
 function sResize(){
   if (fx) fx.cache = {};
-  const d = Math.min(2, window.devicePixelRatio || 1), r = scv.getBoundingClientRect();
+  const d = Math.min(maxDpr(), window.devicePixelRatio || 1), r = scv.getBoundingClientRect();
   sW = r.width; sH = r.height; scv.width = Math.max(1, Math.round(sW*d)); scv.height = Math.max(1, Math.round(sH*d));
   sg.setTransform(d,0,0,d,0,0); sLayout(false);
 }
@@ -1436,8 +1445,7 @@ function drawScene(now){
     if (w.s === 'wait') return;
     const live = w.s !== 'out', sc = w.sc*(live ? pulse : 1);
     sg.save(); sg.globalAlpha = clamp(w.a, 0, 1); sg.translate(w.x, w.y); sg.rotate(w.rot); sg.scale(sc, sc);
-    sg.shadowColor = 'rgba(0,0,0,.75)'; sg.shadowBlur = 14; sg.fillStyle = live ? '#fff' : 'rgba(255,255,255,.55)'; sg.fillText(w.t, 0, 0);
-    if (live){ sg.shadowColor = glow; sg.shadowBlur = 12 + bassP*22; sg.fillText(w.t, 0, 0); }
+    glowText(w.t, live ? '#fff' : 'rgba(255,255,255,.55)', live ? glow : null, sFont().px);
     sg.restore();
   });
 }
@@ -1565,6 +1573,14 @@ function fxExitStart(k){
   if (it.ex === 'zoom'){ const nx = fx.items[k+1]; return nx.t - Math.min(.6, nx.enter) - .3; }
   return it.nextReal ? it.end - Math.min(.45, (it.end - it.t)*.3) : it.end;
 }
+// Tekst med glød – tung på svage enheder, så den forenkles efter kvalitetsniveau
+function glowText(t, fill, glow, px){
+  sg.fillStyle = fill;
+  if (Q === 2){ sg.lineJoin = 'round'; sg.lineWidth = Math.max(2, px*.09); sg.strokeStyle = 'rgba(0,0,0,.55)'; sg.strokeText(t, 0, 0); sg.fillText(t, 0, 0); return; }
+  if (Q === 1){ sg.shadowColor = glow || 'rgba(0,0,0,.7)'; sg.shadowBlur = 10; sg.fillText(t, 0, 0); return; }
+  sg.shadowColor = 'rgba(0,0,0,.75)'; sg.shadowBlur = 14; sg.fillText(t, 0, 0);
+  if (glow){ sg.shadowColor = glow; sg.shadowBlur = 12 + bassP*22; sg.fillText(t, 0, 0); }
+}
 function fxText(l, list){
   sg.font = '700 ' + l.px + 'px Sora, system-ui, sans-serif'; sg.textAlign = 'center'; sg.textBaseline = 'middle';
   const glow = rgba(col1, .75);
@@ -1574,20 +1590,23 @@ function fxText(l, list){
     if (o.sx || o.sy) sg.scale(o.sx || 1, o.sy || 1);
     if (o.cursor){ sg.shadowColor = glow; sg.shadowBlur = 10; sg.fillStyle = '#fff'; sg.fillRect(-l.px*.04, -l.px*.45, l.px*.08, l.px*.9); sg.restore(); return; }
     if (o.puff){   // røgdot: en blød, sløret plet
+      if (Q === 2){ sg.restore(); return; }
       const m = sg.getTransform(), k2 = Math.hypot(m.a, m.b);
       sg.shadowColor = 'rgba(215,215,228,' + clamp(o.a, 0, 1)*.6 + ')'; sg.shadowBlur = o.rad*2.2*k2; sg.shadowOffsetX = m.a*10000; sg.shadowOffsetY = m.b*10000;
       sg.fillStyle = '#000'; sg.beginPath(); sg.arc(-10000, 0, o.rad, 0, Math.PI*2); sg.fill(); sg.restore(); return;
+    }
+    if (o.smoke != null && Q === 2){   // let udgave af røg: bogstavet blegner og bliver gråt
+      sg.fillStyle = 'rgba(225,225,236,' + (1 - clamp(o.smoke, 0, 1)*.5) + ')'; sg.fillText(o.t, 0, 0); sg.restore(); return;
     }
     if (o.smoke != null){   // røg: bogstavet tegnes som sin egen slørede skygge, så det opløses i stedet for at blive en klump
       const sm = clamp(o.smoke, 0, 1);
       if (sm < .35){ sg.globalAlpha = clamp(o.a, 0, 1)*(1 - sm/.35); sg.shadowColor = rgba(col1, .6); sg.shadowBlur = 10; sg.fillStyle = '#fff'; sg.fillText(o.t, 0, 0); sg.globalAlpha = clamp(o.a, 0, 1); }
       // skyggens forskydning måles i skærmpunkter, så den regnes om efter den aktuelle drejning og skalering
       const m = sg.getTransform(), k2 = Math.hypot(m.a, m.b);
-      sg.shadowColor = 'rgba(225,225,236,' + (.95 - sm*.35) + ')'; sg.shadowBlur = (2 + sm*sm*l.px*.9)*k2; sg.shadowOffsetX = m.a*10000; sg.shadowOffsetY = m.b*10000;
+      sg.shadowColor = 'rgba(225,225,236,' + (.95 - sm*.35) + ')'; sg.shadowBlur = (2 + sm*sm*l.px*(Q ? .45 : .9))*k2; sg.shadowOffsetX = m.a*10000; sg.shadowOffsetY = m.b*10000;
       sg.fillStyle = '#000'; sg.fillText(o.t, -10000, 0);
     } else {
-      sg.shadowColor = 'rgba(0,0,0,.75)'; sg.shadowBlur = 14; sg.fillStyle = '#fff'; sg.fillText(o.t, 0, 0);
-      sg.shadowColor = glow; sg.shadowBlur = 12 + bassP*22; sg.fillText(o.t, 0, 0);
+      glowText(o.t, '#fff', glow, l.px);
     }
     sg.restore();
   });
@@ -1723,13 +1742,39 @@ if (document.fonts && document.fonts.addEventListener) document.fonts.addEventLi
 try { if (localStorage.getItem('ksv-view') === 'scene') setView(true, true); } catch(e){}
 
 /* ---------- Hovedløkke ---------- */
+const perf = {last:0, n:0, sum:0, t0:0, cool:0, skip:false, pulse:'', pl:'', gb:'', idle:true, upAt:-1e9, noUp:false, good:0};
+function setQ(q){
+  Q = q; applyQ(); try { localStorage.setItem('ksv-q', String(Q)); } catch(e){}
+  for (const k in vz) delete vz[k]; resize(); sResize(); if (fx) fx.cache = {};
+}
+function watchFps(ms){
+  const dt = ms - perf.last; perf.last = ms;
+  if (document.hidden || audio.paused || dt <= 0 || dt > 250){ perf.n = 0; perf.sum = 0; perf.t0 = ms; perf.idle = true; return; }
+  if (perf.idle){ perf.idle = false; perf.cool = ms + 3000; perf.t0 = ms; }   // de første sekunder efter start tæller ikke (indlæsning)
+  perf.n++; perf.sum += dt;
+  if (ms - perf.t0 > 2500){
+    const fps = 1000/(perf.sum/perf.n);   // skærmens billedrate – også på niveau 2, hvor kun hvert andet billede tegnes
+    if (ms > perf.cool){
+      if (fps < 45 && Q < 2){ if (ms - perf.upAt < 12000) perf.noUp = true; setQ(Q + 1); perf.cool = ms + 3000; perf.good = 0; }
+      else if (Q > 0 && !perf.noUp && fps >= 58){   // kører det helt glat i lang tid, prøves et niveau op igen
+        if (++perf.good >= 6){ perf.good = 0; perf.upAt = ms; setQ(Q - 1); perf.cool = ms + 3000; }
+      } else perf.good = 0;
+    }
+    perf.n = 0; perf.sum = 0; perf.t0 = ms;
+  }
+}
+function setVar(el, name, key, val){ if (perf[key] !== val){ perf[key] = val; el.style.setProperty(name, val); } }
 function frame(ms){
   requestAnimationFrame(frame);
+  watchFps(ms);
+  if (Q === 2){ perf.skip = !perf.skip; if (perf.skip){ updateLyrics(audio.currentTime || 0); return; } }   // 30 billeder/sek.
   const t = ms/1000; readAudio();
   for (let k = 0; k < 3; k++){ col1[k] += (tgt1[k]-col1[k])*.05; col2[k] += (tgt2[k]-col2[k])*.05; }
   const pulse = 1 + bassP*.07;
-  stage.style.setProperty('--pulse', pulse.toFixed(3));
-  const ly = $('#lyrics'); ly.style.setProperty('--pl', (1 + bassP*.035).toFixed(3)); ly.style.setProperty('--gb', (10 + bassP*22).toFixed(1) + 'px');
+  setVar(stage, '--pulse', 'pulse', pulse.toFixed(2));
+  const ly = $('#lyrics');
+  setVar(ly, '--pl', 'pl', Q === 2 ? '1' : (1 + bassP*.035).toFixed(2));
+  setVar(ly, '--gb', 'gb', Q ? '12px' : Math.round(10 + bassP*22) + 'px');
   const w = cv.width, h = cv.height;
   if (needClear){ g.globalCompositeOperation = 'source-over'; g.clearRect(0,0,w,h); needClear = false; }
   const sw = w/1.6, u = sw/600, R = sw*.21*pulse + 3*u;   // lærredet er 1,6 gange scenen; ringene måles efter scenen
@@ -1743,8 +1788,9 @@ function frame(ms){
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.13';
+const VERSION = '1.14';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
+applyQ();
 requestAnimationFrame(frame);
 (async function init(){
   const linked = location.hash.slice(1);
