@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.8 -->
+<!-- KaSvanify v1.9 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -49,6 +49,9 @@ body.scene main{grid-template-columns:1fr}
 body.scene .lyrics{display:none}
 body.scene .stage{opacity:.5;transition:opacity .6s}
 body.scene #btnView{color:var(--a1)}
+.fxbtn{display:none!important;position:relative}
+body.scene .fxbtn{display:grid!important}
+.fxbtn.auto::after{content:"A";position:absolute;right:5px;bottom:5px;font-size:.58rem;font-weight:800;line-height:1;padding:2px 3px;border-radius:5px;background:var(--a1);color:#120c0c}
 @media (max-width:860px){ body.scene main{grid-template-rows:1fr} body.scene .stage{width:min(84vw,48vh);width:min(84vw,48dvh)} }
 .left{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;gap:18px}
 .stage{position:relative;width:min(100%,calc(100vh - 290px),580px);width:min(100%,calc(100dvh - 290px),580px);aspect-ratio:1;--pulse:1}
@@ -254,6 +257,9 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
         <button class="icon-btn" id="btnNext" aria-label="Næste"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM4 18l10.5-6L4 6z"/></svg></button>
       </div>
       <div class="side r">
+        <button class="icon-btn fxbtn" id="btnFx" title="Skift effekt i scenevisningen" aria-label="Skift effekt">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="fxIcon"></svg>
+        </button>
         <button class="icon-btn" id="btnView" title="Skift tekstvisning: rullende eller scene" aria-label="Skift tekstvisning">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg>
         </button>
@@ -771,7 +777,8 @@ function loadSong(i, play){
   if (location.hash.slice(1) !== s.slug) history.replaceState(null, '', '#' + s.slug);
   variant = hashStr(s.base) % VARIANTS.length; needClear = true;
   $('#lyrics').dataset.ws = hashStr(s.base + '·ord') % 3;
-  sExit = hashStr(s.base + '·ud') % 3; sceneReset();   // scenens udgang: 0 falder ned, 1 eksploderer, 2 suges ind   // ordenes indgang: 0 stiger op, 1 falder ned, 2 zoomer ind
+  sExit = hashStr(s.base + '·ud') % 3; sceneReset();
+  fxSongMode = FX_AUTO[hashStr(s.base + '·fx') % FX_AUTO.length]; fx = null; updFxBtn();   // scenens udgang: 0 falder ned, 1 eksploderer, 2 suges ind   // ordenes indgang: 0 stiger op, 1 falder ned, 2 zoomer ind
   document.querySelectorAll('.row-song').forEach(b => b.classList.toggle('current', +b.dataset.i === cur));
   updateMediaSession(s);
   loadLyrics(s);
@@ -1174,6 +1181,7 @@ document.addEventListener('keydown', e => {
 const scv = $('#sceneCv'), sg = scv.getContext('2d');
 let sW = 0, sH = 0, sCX = 0, sCY = 0, sWords = [], sExit = 0, sCurText = null, viewScene = false;
 function sResize(){
+  if (fx) fx.cache = {};
   const d = Math.min(2, window.devicePixelRatio || 1), r = scv.getBoundingClientRect();
   sW = r.width; sH = r.height; scv.width = Math.max(1, Math.round(sW*d)); scv.height = Math.max(1, Math.round(sH*d));
   sg.setTransform(d,0,0,d,0,0); sLayout(false);
@@ -1209,7 +1217,7 @@ function sExitAll(){
 function sceneLine(text){
   text = text || '';
   if (text === sCurText) return; sCurText = text;
-  if (!viewScene){ sWords = []; return; }
+  if (!viewScene || fxMode() !== 'flyv'){ sWords = []; return; }
   sExitAll(); if (!text) return;
   const now = performance.now();
   const nw = text.split(/\s+/).filter(Boolean).map((t,k) => ({t, s:'wait', d:k*90, born:now, x:0, y:0, vx:0, vy:0, rot:(Math.random()-.5)*1.2, vr:0, a:1, sc:1, w:0}));
@@ -1224,6 +1232,7 @@ function sceneReset(){ sWords = []; sCurText = null; }
 function drawScene(now){
   if (!viewScene || !sW) return;
   sg.clearRect(0, 0, sW, sH);
+  if (fxMode() !== 'flyv'){ drawFx(audio.currentTime || 0); return; }
   sWords.forEach(w => {
     const age = now - w.born - w.d;
     if (w.s === 'wait' && age > 0) w.s = 'in';
@@ -1265,6 +1274,181 @@ function setView(scene, quiet){
   if (!quiet) toast(scene ? 'Tekst: scene' : 'Tekst: rullende', 1300);
 }
 $('#btnView').addEventListener('click', () => setView(!viewScene));
+
+/* ---------- Effekter i scenevisningen ----------
+   Tidsstyret og uden hukommelse: alt regnes ud fra sangens tid, så spoling altid passer.
+   Hver linje kommer ind før den synges og står klar, når den starter. */
+const FX_MODES = ['auto','flyv','hop','haengsel','skub','zoom','blandet'];
+const FX_AUTO  = ['flyv','hop','haengsel','skub','zoom','blandet'];
+const FX_NAMES = {auto:'automatisk', flyv:'flyv', hop:'hop', haengsel:'hængsel', skub:'skub', zoom:'zoom', blandet:'blandet'};
+const FX_ICONS = {
+  flyv:'<path d="M3 12h6M15 12h6M6 8l4 4-4 4M18 8l-4 4 4 4"/>',
+  hop:'<path d="M3 20h18"/><path d="M4 17c1.5-9 4-9 5.5 0c1-5 3-5 4 0c.7-3 2-3 2.7 0"/>',
+  haengsel:'<circle cx="18" cy="5" r="1.8"/><path d="M18 7v13"/><path d="M4 5h10" stroke-dasharray="2 2.5"/>',
+  skub:'<rect x="3" y="8" width="7" height="8" rx="1.5"/><rect x="14" y="8" width="7" height="8" rx="1.5" transform="rotate(10 17.5 12)"/><path d="M10.5 12h2.5"/>',
+  zoom:'<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5M8 10.5h5M10.5 8v5"/>',
+  blandet:'<rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r=".9" fill="currentColor"/><circle cx="15" cy="15" r=".9" fill="currentColor"/><circle cx="15" cy="9" r=".9" fill="currentColor"/><circle cx="9" cy="15" r=".9" fill="currentColor"/>'
+};
+let fxPick = 'auto'; try { fxPick = localStorage.getItem('ksv-fx') || 'auto'; } catch(e){}
+if (!FX_MODES.includes(fxPick)) fxPick = 'auto';
+let fxSongMode = 'flyv', fx = null;
+function fxMode(){ return fxPick === 'auto' ? fxSongMode : fxPick; }
+function updFxBtn(){
+  const m = fxMode(), b = $('#btnFx');
+  $('#fxIcon').innerHTML = FX_ICONS[m]; b.classList.toggle('auto', fxPick === 'auto');
+  b.title = 'Effekt: ' + FX_NAMES[m] + (fxPick === 'auto' ? ' (valgt af sangen)' : '') + ' – klik for at skifte';
+}
+$('#btnFx').addEventListener('click', () => {
+  fxPick = FX_MODES[(FX_MODES.indexOf(fxPick) + 1) % FX_MODES.length];
+  try { localStorage.setItem('ksv-fx', fxPick); } catch(e){}
+  fx = null; sceneReset(); sceneLine(active >= 0 && lines[active] ? lines[active].text : ''); updFxBtn();
+  toast('Effekt: ' + (fxPick === 'auto' ? 'automatisk (' + FX_NAMES[fxMode()] + ')' : FX_NAMES[fxPick]), 1500);
+});
+updFxBtn();
+const rndK = (k, salt) => hashStr((songs[cur] ? songs[cur].base : '') + '|' + k + '|' + salt) / 4294967296;
+const eo3 = p => 1 - Math.pow(1-p, 3);
+const eoBack = p => { const c = 1.7; return 1 + (c+1)*Math.pow(p-1,3) + c*Math.pow(p-1,2); };
+function bounceOut(p){ const n = 7.5625, d = 2.75; if (p < 1/d) return n*p*p; if (p < 2/d) return n*(p -= 1.5/d)*p + .75; if (p < 2.5/d) return n*(p -= 2.25/d)*p + .9375; return n*(p -= 2.625/d)*p + .984375; }
+const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+function fxBuild(){
+  const dur = audio.duration, endT = isFinite(dur) && dur > LEAD_OUT*2 ? dur - LEAD_OUT : Infinity, mode = fxMode();
+  const items = [];
+  lines.forEach((l,i) => { if (!l.text) return; const nx = lines[i+1]; items.push({text:l.text, t:l.t, end: nx ? nx.t : endT}); });
+  items.forEach((it,k) => {
+    const nx = items[k+1]; it.nextReal = !!(nx && Math.abs(nx.t - it.end) < .001);
+    const prev = items[k-1]; it.enter = clamp(prev ? (it.t - prev.t)*.55 : 1.1, .35, 1.1);
+    it.ent = mode === 'blandet' ? ['hop','rise','slide','emerge'][Math.floor(rndK(k,'ind')*4)] : {hop:'hop', haengsel:'rise', skub:'slide', zoom:'emerge'}[mode];
+  });
+  items.forEach((it,k) => {
+    const n = it.nextReal ? items[k+1].ent : null;
+    it.ex = n === 'slide' ? 'pushed' : n === 'emerge' ? 'zoom'
+          : mode === 'haengsel' ? 'hinge' : mode === 'blandet' ? (rndK(k,'ud') < .5 ? 'hinge' : 'drop') : 'drop';
+  });
+  fx = {items, mode, lines, dur, cache:{}, push:{}};
+}
+function fxLay(k){
+  if (fx.cache[k]) return fx.cache[k];
+  const it = fx.items[k];
+  let px = sFont().px; const maxW = Math.min(sW*.86, sW - 24);
+  const words = it.text.split(/\s+/).filter(Boolean);
+  let rows, bw, lh, gap;
+  const doLayout = () => {
+    sg.font = '700 ' + px + 'px Sora, system-ui, sans-serif'; gap = px*.32; lh = px*1.25; rows = [[]]; let rw = 0;
+    words.forEach(t => { const w = sg.measureText(t).width; if (rw + w > maxW && rows[rows.length-1].length){ rows.push([]); rw = 0; } rows[rows.length-1].push({t, w}); rw += w + gap; });
+    bw = Math.max(...rows.map(r => r.reduce((a,o) => a + o.w, 0) + gap*(r.length-1)));
+  };
+  doLayout(); if (rows.length > 3){ px = Math.max(16, px*3/rows.length); doLayout(); }
+  const bh = rows.length*lh, ws = [];
+  rows.forEach((r,ri) => { const tot = r.reduce((a,o) => a + o.w, 0) + gap*(r.length-1); let x = -tot/2; r.forEach(o => { ws.push({t:o.t, w:o.w, x:x + o.w/2, y:-bh/2 + lh/2 + ri*lh}); x += o.w + gap; }); });
+  // placering
+  let cx = sCX, cy = sCY, r = 0, side = rndK(k,'side') < .5 ? 'L' : 'R', isUpper = false;
+  if (it.ent === 'hop' || it.ent === 'rise'){
+    const upper = k % 2 === 0, prev = k > 0 ? fxLay(k-1) : null;
+    if (!upper && prev && prev.upper && fx.items[k-1].ex === 'hinge') side = prev.side === 'L' ? 'R' : 'L';
+    cx = sCX + (side === 'L' ? -1 : 1)*sW*.1; cy = sCY + (upper ? -1 : 1)*sH*.17; r = (rndK(k,'skæv') - .5)*.08;
+    isUpper = upper;
+  }
+  cx = clamp(cx, bw/2 + 12, Math.max(bw/2 + 12, sW - bw/2 - 12)); cy = clamp(cy, bh/2 + 8, Math.max(bh/2 + 8, sH - bh/2 - 8));
+  const zj = Math.floor(rndK(k,'zoomord')*ws.length), zw = ws[zj], zl = Math.floor(rndK(k,'zoombogstav')*zw.t.length);
+  sg.font = '700 ' + px + 'px Sora, system-ui, sans-serif';
+  const zx = zw.x - zw.w/2 + sg.measureText(zw.t.slice(0,zl)).width + sg.measureText(zw.t[zl] || 'o').width/2;
+  return fx.cache[k] = {ws, bw, bh, px, lh, cx, cy, r, side, upper: isUpper, dir: DIRS[Math.floor(rndK(k,'retning')*4)], zp:{x:zx, y:zw.y}};
+}
+function fxSlideOff(k, T){
+  const it = fx.items[k], l = fxLay(k), p = clamp((T - (it.t - it.enter))/it.enter, 0, 1), [dx,dy] = l.dir, e = 1 - eo3(p);
+  const off0 = dx > 0 ? (-l.bw/2 - 20) - l.cx : dx < 0 ? (sW + l.bw/2 + 20) - l.cx : dy > 0 ? (-l.bh/2 - 20) - l.cy : (sH + l.bh/2 + 20) - l.cy;
+  return dx ? {x:off0*e, y:0} : {x:0, y:off0*e};
+}
+function fxOverlap(k, T){
+  const n = fxLay(k+1), o = fxLay(k), [dx,dy] = n.dir, s = fxSlideOff(k+1, T);
+  if (dx){ const lead = n.cx + s.x + dx*n.bw/2, trail = o.cx - dx*o.bw/2; return dx*(lead - trail) + 14; }
+  const lead = n.cy + s.y + dy*n.bh/2, trail = o.cy - dy*o.bh/2; return dy*(lead - trail) + 8;
+}
+function fxPush(k){
+  if (fx.push[k]) return fx.push[k];
+  const nx = fx.items[k+1], a = nx.t - nx.enter; let tc = nx.t, v0 = 600;
+  for (let T = a; T <= nx.t; T += 1/240){
+    if (fxOverlap(k, T) > 0){ tc = T; const s1 = fxSlideOff(k+1, T), s2 = fxSlideOff(k+1, T + 1/240); v0 = Math.hypot(s2.x - s1.x, s2.y - s1.y)*240; break; }
+  }
+  return fx.push[k] = {tc, v0};
+}
+function hingeSwing(tau, rest){ let th = 0, w = 0; const dt = 1/240; for (let t = 0; t < tau; t += dt){ const a = -38*Math.sin(th - rest) - 2.4*w; w += a*dt; th += w*dt; } return {th, w}; }
+function fxExitStart(k){
+  const it = fx.items[k];
+  if (it.ex === 'pushed') return fxPush(k).tc;
+  if (it.ex === 'zoom'){ const nx = fx.items[k+1]; return nx.t - Math.min(.6, nx.enter) - .3; }
+  return it.nextReal ? it.end - Math.min(.45, (it.end - it.t)*.3) : it.end;
+}
+function fxText(l, list){
+  sg.font = '700 ' + l.px + 'px Sora, system-ui, sans-serif'; sg.textAlign = 'center'; sg.textBaseline = 'middle';
+  const glow = rgba(col1, .75);
+  list.forEach(o => {
+    sg.save(); sg.globalAlpha = clamp(o.a, 0, 1); sg.translate(o.x, o.y); if (o.r) sg.rotate(o.r);
+    sg.shadowColor = 'rgba(0,0,0,.75)'; sg.shadowBlur = 14; sg.fillStyle = '#fff'; sg.fillText(o.t, 0, 0);
+    sg.shadowColor = glow; sg.shadowBlur = 12 + bassP*22; sg.fillText(o.t, 0, 0);
+    sg.restore();
+  });
+}
+function drawFx(T){
+  if (!fx || fx.lines !== lines || fx.mode !== fxMode() || fx.dur !== audio.duration) fxBuild();
+  const items = fx.items;
+  for (let k = 0; k < items.length; k++){
+    const it = items[k], es = it.t - it.enter;
+    if (T < es) break;
+    const xs = fxExitStart(k); if (T > xs + 3.2) continue;
+    const l = fxLay(k);
+    let ox = 0, oy = 0, rot = l.r, sc = 1, alpha = 1, per = null, hinge = null, zoom = null;
+    if (T < it.t){
+      const pe = (T - es)/it.enter;
+      if (it.ent === 'hop'){
+        const n = l.ws.length, d = Math.min(.07, Math.max(0, (it.enter - .5)/Math.max(1, n-1))), du = Math.max(.3, it.enter - d*(n-1));
+        per = j => { const p = clamp((T - es - j*d)/du, 0, 1); return p <= 0 ? null : {dx:(1 - eo3(p))*(j % 2 ? 40 : -40), dy:-(1 - bounceOut(p))*sH*.55, a:1, r:0}; };
+      } else if (it.ent === 'rise'){ oy = (1 - eo3(pe))*36; alpha = eo3(pe); }
+      else if (it.ent === 'slide'){ const s = fxSlideOff(k, T); ox = s.x; oy = s.y; }
+      else if (it.ent === 'emerge'){ const ed = Math.min(.6, it.enter), p = clamp((T - (it.t - ed))/ed, 0, 1); if (p <= 0) continue; sc = Math.max(.05, eoBack(p)); alpha = p; }
+    }
+    // rekyl, når en skubbende linje rammer den forrige
+    if (it.ent === 'slide' && k > 0 && items[k-1].ex === 'pushed'){
+      const tc = fxPush(k-1).tc, tau = T - tc;
+      if (tau > 0 && tau < 1){ const [dx,dy] = l.dir, b = 22*Math.exp(-7*tau)*Math.sin(15*tau); ox -= dx*b; oy -= dy*b; }
+    }
+    if (T >= it.t && T < xs) sc *= 1 + bassP*.04;
+    if (T > xs){
+      const tau = T - xs;
+      if (it.ex === 'hinge'){
+        const rest = l.side === 'R' ? -Math.PI/2 : Math.PI/2, D = 1.7;
+        if (tau < D) hinge = {th:hingeSwing(tau, rest).th, drop:0};
+        else { const h = hingeSwing(D, rest), f = tau - D; hinge = {th:h.th + h.w*f, drop:900*f*f}; alpha = 1 - f*1.1; }
+      } else if (it.ex === 'drop'){
+        per = j => { const s = (j*37 % 11)/11, f = Math.max(0, tau - j*.04); return {dx:(s - .5)*140*f, dy:-160*f + 900*f*f, a:1 - f*.9, r:(s - .5)*3*f}; };
+      } else if (it.ex === 'pushed'){
+        const {v0} = fxPush(k), [dx,dy] = fxLay(k+1).dir, dist = Math.max(fxOverlap(k, T), v0*tau + 700*tau*tau);
+        ox = dx*dist; oy = dy*dist;
+        if (dx) oy += -380*tau + 1300*tau*tau; else ox += (rndK(k,'skæv') < .5 ? -1 : 1)*120*tau;   // lille hop ved sammenstødet
+        rot += (dx || dy)*.25*tau*tau*(dx ? 1 : .5);
+      } else if (it.ex === 'zoom'){
+        const p = clamp(tau/.85, 0, 1); zoom = Math.exp(p*Math.log(70)); alpha = p > .75 ? 1 - (p - .75)/.25 : 1;
+      }
+    }
+    if (alpha <= 0) continue;
+    sg.save();
+    if (zoom){
+      const c = Math.cos(l.r), s = Math.sin(l.r), zx = l.cx + l.zp.x*c - l.zp.y*s, zy = l.cy + l.zp.x*s + l.zp.y*c;
+      sg.translate(zx, zy); sg.scale(zoom, zoom); sg.translate(-zx, -zy); sg.translate(l.cx, l.cy); sg.rotate(l.r);
+      fxText(l, l.ws.map(w => ({t:w.t, x:w.x, y:w.y, a:alpha})));
+    } else if (hinge){
+      const pvx = (l.side === 'R' ? 1 : -1)*l.bw/2, pvy = l.bh/2 - l.lh*.1, c = Math.cos(l.r), s = Math.sin(l.r);
+      sg.translate(l.cx + pvx*c - pvy*s, l.cy + pvx*s + pvy*c + hinge.drop); sg.rotate(l.r + hinge.th); sg.translate(-pvx, -pvy);
+      fxText(l, l.ws.map(w => ({t:w.t, x:w.x, y:w.y, a:alpha})));
+    } else {
+      sg.translate(l.cx + ox, l.cy + oy); sg.rotate(rot); sg.scale(sc, sc);
+      const list = []; l.ws.forEach((w,j) => { if (per){ const o = per(j); if (o) list.push({t:w.t, x:w.x + o.dx, y:w.y + o.dy, a:o.a*alpha, r:o.r}); } else list.push({t:w.t, x:w.x, y:w.y, a:alpha}); });
+      fxText(l, list);
+    }
+    sg.restore();
+  }
+}
+
 try { if (localStorage.getItem('ksv-view') === 'scene') setView(true, true); } catch(e){}
 
 /* ---------- Hovedløkke ---------- */
@@ -1287,7 +1471,7 @@ function frame(ms){
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.8';
+const VERSION = '1.9';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
 requestAnimationFrame(frame);
 (async function init(){
