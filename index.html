@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.16 -->
+<!-- KaSvanify v1.17 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -30,7 +30,9 @@ svg{display:block}
 .app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;overflow:clip}
 header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;position:relative;z-index:31}
 .brand{display:flex;align-items:baseline;gap:8px}
-.vtag{font-size:.68rem;font-weight:600;color:rgba(255,255,255,.26);letter-spacing:.04em}
+.vtag{font-size:.68rem;font-weight:600;color:rgba(255,255,255,.26);letter-spacing:.04em;cursor:pointer;padding:6px 4px;margin:-6px -4px}
+.diag{position:fixed;left:12px;top:64px;z-index:60;background:rgba(10,10,16,.88);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:600 .78rem/1.5 ui-monospace,Menlo,Consolas,monospace;color:#e8e8f0;min-width:210px}
+.diag button{font:inherit;margin-top:8px;padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.12)}
 body.at-home #openList{display:none}
 body.at-home header{background:rgba(11,11,16,.84);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 1px 0 var(--line)}
 .mini{display:flex;align-items:center;gap:8px;min-width:0}
@@ -288,7 +290,7 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
         <button class="icon-btn" id="btnView" title="Skift tekstvisning: rullende eller scene" aria-label="Skift tekstvisning">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg>
         </button>
-        <button class="icon-btn" id="btnRing" title="Skift visualisering" aria-label="Skift visualisering">
+        <button class="icon-btn" id="btnRing" title="Næste visualisering" aria-label="Næste visualisering">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
         </button>
         <div class="vol">
@@ -406,6 +408,7 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
     <div id="homeGrid"></div>
   </div>
 </div>
+<div class="diag" id="diag" hidden><div id="diagTxt"></div><button id="diagReset">Nulstil kvalitet</button></div>
 <div class="toast" id="toast"></div>
 <audio id="audio" preload="metadata" playsinline></audio>
 
@@ -551,14 +554,15 @@ function initAudio(){
   } catch(e){ actx = null; analyser = null; }
 }
 function readAudio(){
-  if (!analyser){ bands.fill(0); bass *= .9; bassP = 0; return; }
+  if (!analyser){ for (let i = 0; i < NB; i++) bands[i] *= .85; bass *= .9; bassP = 0; return; }
   analyser.getByteFrequencyData(fbuf); analyser.getByteTimeDomainData(wbuf);
   for (let i = 0; i < NB; i++){
     const a = edges[i], b = Math.max(edges[i+1], a+1); let s = 0, m = 0;
     for (let k = a; k < b; k++){ s += fbuf[k]; if (fbuf[k] > m) m = fbuf[k]; }
     let v = ((s/(b-a))*.5 + m*.5) / 255;
     v *= 1 + (i/NB) * .7;
-    bands[i] = Math.min(1, Math.pow(v, 1.5));
+    const nv = Math.min(1, Math.pow(v, 1.5));
+    bands[i] += (nv - bands[i])*(nv > bands[i] ? .6 : .2);   // glider mod den nye værdi: hurtigt op, blødt ned
   }
   let bs = 0; const e0 = edges[0], e1 = edges[10];
   for (let k = e0; k <= e1; k++) bs += fbuf[k];
@@ -632,16 +636,21 @@ const VARIANTS = [
       const {cx,cy,R,maxL,t,u} = P, n = 64, step = Math.PI/n;
       const lw = Math.max(1.5*u, (2*Math.PI*R/(2*n))*.55), sway = Math.sin(t*.15)*.12;
       g.clearRect(0,0,P.w,P.h); g.lineCap = 'round'; g.globalCompositeOperation = 'lighter';
+      // strålerne samles i nogle få farvegrupper, så de tegnes med få streger i stedet for 256 enkelte (meget lettere på telefoner)
+      const groups = COARSE ? 6 : 12, glowPass = !COARSE && Q === 0, paths = [];
+      for (let gi = 0; gi < groups; gi++) paths.push(new Path2D());
       for (let i = 0; i < n; i++){
-        const v = Math.max(bands[Math.floor(i*NB*.85/n)], idle(i,t));
-        const len = 3*u + v*maxL*.92, c = mix(col1, col2, i/n);
+        const v = Math.max(bands[Math.floor(i*NB*.85/n)], idle(i,t)), len = 3*u + v*maxL*.92, pth = paths[Math.floor(i/n*groups)];
         for (const side of [1,-1]){
-          const a = -Math.PI/2 + side*(i+.5)*step + sway;
-          const x1 = cx+Math.cos(a)*R, y1 = cy+Math.sin(a)*R, x2 = cx+Math.cos(a)*(R+len), y2 = cy+Math.sin(a)*(R+len);
-          g.strokeStyle = rgba(c,.18); g.lineWidth = lw*2.8; g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
-          g.strokeStyle = rgba(c,.95); g.lineWidth = lw;     g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+          const a = -Math.PI/2 + side*(i+.5)*step + sway, ca = Math.cos(a), sa = Math.sin(a);
+          pth.moveTo(cx + ca*R, cy + sa*R); pth.lineTo(cx + ca*(R+len), cy + sa*(R+len));
         }
       }
+      paths.forEach((pth, gi) => {
+        const c = mix(col1, col2, (gi + .5)/groups);
+        if (glowPass){ g.strokeStyle = rgba(c,.18); g.lineWidth = lw*2.8; g.stroke(pth); }
+        g.strokeStyle = rgba(c,.95); g.lineWidth = lw; g.stroke(pth);
+      });
   }},
   { name:'Bølge', draw(P){
       const {cx,cy,R,maxL,t,u} = P, n = 60, pts = [], echo = [];
@@ -662,7 +671,7 @@ const VARIANTS = [
       g.lineWidth = 2.5*u; g.strokeStyle = rgba(col2,.9); g.stroke();
       closedCurve(echo); g.lineWidth = 1.5*u; g.strokeStyle = rgba(col1,.3); g.stroke();
       if (analyser){
-        const m = 200, rr = R + maxL*.06; g.beginPath();
+        const m = COARSE ? 100 : 200, rr = R + maxL*.06; g.beginPath();
         for (let j = 0; j <= m; j++){
           const s = (wbuf[Math.floor(j/m*(wbuf.length-1))] - 128) / 128;
           const a = -Math.PI/2 + j/m*Math.PI*2 + rot*2, r = rr + s*maxL*.18;
@@ -691,10 +700,10 @@ const VARIANTS = [
       const {cx,cy,R,maxL,t,u} = P;
       g.clearRect(0,0,P.w,P.h); g.globalCompositeOperation = 'lighter';
       const layer = (petals, off, b0, span, reach, c, alpha) => {
-        const n = petals*24, pts = [];
+        const per = COARSE ? 14 : 24, n = petals*per, pts = [];
         for (let k = 0; k < n; k++){
           const a = -Math.PI/2 + k/n*Math.PI*2 + off;
-          const loc = (k % 24)/24, tri = 1 - Math.abs(2*loc - 1);
+          const loc = (k % per)/per, tri = 1 - Math.abs(2*loc - 1);
           const v = Math.max(bands[b0 + Math.floor(tri*span)], .06 + .03*Math.sin(t*1.5 + k*.1));
           const r = R + 3*u + maxL*reach*Math.pow(tri, 1.4)*(.25 + v*.75);
           pts.push([cx+Math.cos(a)*r, cy+Math.sin(a)*r]);
@@ -728,6 +737,14 @@ const VARIANTS = [
       g.clearRect(0,0,P.w,P.h); g.globalCompositeOperation = 'lighter';
       if (!vz.peaks || vz.peaks.length !== n) vz.peaks = new Float32Array(n);
       const segL = maxL*.9/seg, bw = 2*Math.PI*(R + maxL*.45)/(2*n)*.62;
+      // alle blokke i samme højde tegnes som én form (9 farver i alt) i stedet for op til 250 enkelte rektangler
+      const levels = []; for (let k = 0; k < seg; k++) levels.push(new Path2D());
+      const peaks = new Path2D();
+      const quad = (pth, a, r0, r1, hw) => {
+        const dx = Math.cos(a), dy = Math.sin(a), px = -dy*hw, py = dx*hw;
+        pth.moveTo(cx + dx*r0 + px, cy + dy*r0 + py); pth.lineTo(cx + dx*r1 + px, cy + dy*r1 + py);
+        pth.lineTo(cx + dx*r1 - px, cy + dy*r1 - py); pth.lineTo(cx + dx*r0 - px, cy + dy*r0 - py); pth.closePath();
+      };
       for (let i = 0; i < n; i++){
         let v = 0; const b0 = Math.floor(i*NB*.8/n), b1 = Math.floor((i+1)*NB*.8/n);
         for (let k = b0; k < b1; k++) v = Math.max(v, bands[k]);
@@ -735,17 +752,14 @@ const VARIANTS = [
         const lit = Math.round(v*seg); vz.peaks[i] = Math.max(vz.peaks[i] - .012, v);
         for (const side of [1,-1]){
           const a = -Math.PI/2 + side*(i+.5)*step;
-          g.save(); g.translate(cx, cy); g.rotate(a + Math.PI/2);
           for (let sgi = 0; sgi < lit; sgi++){
-            g.fillStyle = rgba(mix(col1, col2, sgi/seg), .9);
-            const y = -(R + 4*u + sgi*segL);
-            g.fillRect(-bw/2*(.6 + .4*(sgi+1)/seg), y - segL*.78, bw*(.6 + .4*(sgi+1)/seg), segL*.78);
+            const r0 = R + 4*u + sgi*segL; quad(levels[sgi], a, r0, r0 + segL*.78, bw/2*(.6 + .4*(sgi+1)/seg));
           }
-          const py = -(R + 4*u + vz.peaks[i]*seg*segL);
-          g.fillStyle = rgba(col2, .95); g.fillRect(-bw/2, py - 3*u, bw, 3*u);
-          g.restore();
+          const pr = R + 4*u + vz.peaks[i]*seg*segL; quad(peaks, a, pr, pr + 3*u, bw/2);
         }
       }
+      levels.forEach((pth, k) => { g.fillStyle = rgba(mix(col1, col2, k/seg), .9); g.fill(pth); });
+      g.fillStyle = rgba(col2, .95); g.fill(peaks);
   }},
   { name:'Flammer', draw(P){   // flammetunger, der slikker ud fra coveret
       const {cx,cy,R,maxL,t,u} = P, n = 120;
@@ -1360,8 +1374,8 @@ $('#miniPrev').addEventListener('click', () => step(-1));
 $('#miniNext').addEventListener('click', () => step(1));
 logo.addEventListener('click', () => { if (!lpFired) showHome(); });
 $('#btnRing').addEventListener('click', () => {
-  let v; do { v = Math.floor(Math.random()*VARIANTS.length); } while (v === variant && VARIANTS.length > 1);
-  variant = v; needClear = true; toast('Ring: ' + VARIANTS[v].name, 1400);
+  variant = (variant + 1) % VARIANTS.length; needClear = true; for (const k in vz) delete vz[k];
+  toast('Ring ' + (variant + 1) + '/' + VARIANTS.length + ': ' + VARIANTS[variant].name, 1400);
 });
 $('#start').addEventListener('click', doPlay);
 document.addEventListener('keydown', e => {
@@ -1808,26 +1822,35 @@ if (document.fonts && document.fonts.addEventListener) document.fonts.addEventLi
 try { if (localStorage.getItem('ksv-view') === 'scene') setView(true, true); } catch(e){}
 
 /* ---------- Hovedløkke ---------- */
-const perf = {last:0, n:0, sum:0, t0:0, cool:0, skip:false, pulse:'', pl:'', gb:'', idle:true, upAt:-1e9, noUp:false, good:0};
+const perf = {last:0, dts:[], t0:0, cool:0, skip:false, pulse:'', pl:'', gb:'', idle:true, upAt:-1e9, backoff:15000, bad:0, good:0};
 function setQ(q){
   Q = q; applyQ(); try { localStorage.setItem('ksv-q', String(Q)); } catch(e){}
   for (const k in vz) delete vz[k]; sprites.clear(); resize(); sResize(); if (fx) fx.cache = {};
 }
+/* Billedraten måles som MEDIAN af billedtiderne, så enkelte hak (indlæsning, et tryk, oprydning i hukommelsen)
+   ikke får siden til at skrue ned. Der skrues kun ned efter to dårlige målinger i træk. */
 function watchFps(ms){
   const dt = ms - perf.last; perf.last = ms;
   // kun lange huller (fx en skjult fane) tæller som pause – langsomme billeder skal netop tælle med
-  if (document.hidden || audio.paused || dt <= 0 || dt > 1500){ perf.n = 0; perf.sum = 0; perf.t0 = ms; perf.idle = true; return; }
+  if (document.hidden || audio.paused || dt <= 0 || dt > 1500){ perf.dts = []; perf.t0 = ms; perf.idle = true; return; }
   if (perf.idle){ perf.idle = false; perf.cool = ms + 3000; perf.t0 = ms; }   // de første sekunder efter start tæller ikke (indlæsning)
-  perf.n++; perf.sum += dt;
+  perf.dts.push(dt);
   if (ms - perf.t0 > 2500){
-    const fps = 1000/(perf.sum/perf.n);   // skærmens billedrate – også på niveau 2, hvor kun hvert andet billede tegnes
-    if (ms > perf.cool){
-      if (fps < 45 && Q < 2){ if (ms - perf.upAt < 12000) perf.noUp = true; setQ(Q + 1); perf.cool = ms + 3000; perf.good = 0; }
-      else if (Q > 0 && !perf.noUp && fps >= 58){   // kører det helt glat i lang tid, prøves et niveau op igen
-        if (++perf.good >= 6){ perf.good = 0; perf.upAt = ms; setQ(Q - 1); perf.cool = ms + 3000; }
+    const d = perf.dts.slice().sort((x,y) => x - y), fps = 1000/d[Math.floor(d.length/2)];   // skærmens billedrate, også på niveau 2
+    perf.dts = []; perf.t0 = ms; perf.fps = fps;
+    if (ms <= perf.cool) return;
+    if (fps < 45){
+      perf.good = 0;
+      if (Q < 2 && ++perf.bad >= 2){
+        perf.bad = 0; if (ms - perf.upAt < 12000) perf.backoff = Math.min(perf.backoff*2, 240000);   // et forsøg på at skrue op gik galt: vent længere næste gang
+        setQ(Q + 1); perf.cool = ms + 3000;
+      }
+    } else {
+      perf.bad = 0;
+      if (Q > 0 && fps >= 57 && ms - perf.upAt > perf.backoff){   // kører det glat, prøves et niveau op igen
+        if (++perf.good >= 4){ perf.good = 0; perf.upAt = ms; setQ(Q - 1); perf.cool = ms + 3000; }
       } else perf.good = 0;
     }
-    perf.n = 0; perf.sum = 0; perf.t0 = ms;
   }
 }
 function setVar(el, name, key, val){ if (perf[key] !== val){ perf[key] = val; el.style.setProperty(name, val); } }
@@ -1845,17 +1868,35 @@ function frame(ms){
   const w = cv.width, h = cv.height;
   if (needClear){ g.globalCompositeOperation = 'source-over'; g.clearRect(0,0,w,h); needClear = false; }
   const sw = w/1.6, u = sw/600, R = sw*.21*pulse + 3*u;   // lærredet er 1,6 gange scenen; ringene måles efter scenen
+  const tr0 = diag.on ? performance.now() : 0;
   VARIANTS[variant].draw({cx:w/2, cy:h/2, R, maxL:sw*.5 - R - 6*u, t, u, w, h});
+  if (diag.on) diag.ring.push(performance.now() - tr0);
   g.globalCompositeOperation = 'source-over';
   const ct = audio.currentTime || 0;
   if (!seeking && audio.duration){ seek.value = Math.round(ct/audio.duration*1000); seek.style.setProperty('--v', (ct/audio.duration*100) + '%'); $('#tCur').textContent = fmt(ct); }
   updateLyrics(heardT());
   if (!$('#miniProg').hidden && audio.duration) $('#miniBar').style.width = (ct/audio.duration*100) + '%';
+  const ts0 = diag.on ? performance.now() : 0;
   drawScene(ms);
+  if (diag.on){ diag.scene.push(performance.now() - ts0); diagUpdate(ms); }
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.16';
+/* Skjult måler: tryk på versionsnummeret */
+const diag = {on:false, frames:0, t0:0, ring:[], scene:[]};
+$('#vtag').addEventListener('click', e => { e.stopPropagation(); diag.on = !diag.on; $('#diag').hidden = !diag.on; diag.frames = 0; diag.t0 = performance.now(); diag.ring = []; diag.scene = []; });
+$('#diagReset').addEventListener('click', () => { perf.backoff = 15000; perf.upAt = -1e9; setQ(0); toast('Kvaliteten er nulstillet', 1500); });
+function diagUpdate(now){
+  diag.frames++;
+  if (now - diag.t0 < 700) return;
+  const med = a => { if (!a.length) return 0; const b = a.slice().sort((x,y) => x - y); return b[Math.floor(b.length/2)]; };
+  const fps = diag.frames*1000/(now - diag.t0);
+  $('#diagTxt').innerHTML = 'billeder/sek: ' + fps.toFixed(0) + (perf.fps ? ' (skærm ' + perf.fps.toFixed(0) + ')' : '') + '<br>kvalitet: ' + Q + (Q === 2 ? ' (tegner hvert 2. billede)' : '') +
+    '<br>ring: ' + VARIANTS[variant].name + ' ' + med(diag.ring).toFixed(1) + ' ms<br>tekst: ' + (viewScene ? FX_NAMES[fxMode()] : 'rullende') + ' ' + med(diag.scene).toFixed(1) + ' ms' +
+    '<br>opløsning: ring ' + dpr.toFixed(2) + ' · skærm ' + (window.devicePixelRatio || 1).toFixed(2) + '<br>lydforsinkelse: ' + Math.round(clock.lat*1000) + ' ms';
+  diag.frames = 0; diag.t0 = now; diag.ring = []; diag.scene = [];
+}
+const VERSION = '1.17';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
 applyQ();
 requestAnimationFrame(frame);
