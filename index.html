@@ -1,0 +1,826 @@
+<!doctype html>
+<!-- KaSvanify v1.0 -->
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0b0b10">
+<title>KaSvanify</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦢</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --a1:rgb(255,122,89); --a2:rgb(124,140,255);
+  --bg:#0b0b10; --fg:#f4f2f7; --dim:rgba(244,242,247,.58);
+  --panel:rgba(14,14,22,.86); --line:rgba(255,255,255,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:Sora,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg{display:block}
+
+#bg{position:fixed;inset:-12%;background-size:cover;background-position:center;filter:blur(70px) saturate(1.5) brightness(.36);transform:scale(1.15);z-index:-2;transition:opacity .8s}
+#bgShade{position:fixed;inset:0;background:radial-gradient(ellipse at 30% 40%,rgba(0,0,0,.05),rgba(0,0,0,.6));z-index:-1}
+
+.app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto 1fr auto}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px}
+.logo{font-weight:800;font-size:1.4rem;letter-spacing:-.03em}
+.logo .svan{color:var(--a1);transition:color .8s}
+.pill{display:inline-flex;gap:8px;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(255,255,255,.09);font-size:.9rem;font-weight:600;transition:background .2s}
+.pill:hover{background:rgba(255,255,255,.16)}
+.pill svg{width:18px;height:18px}
+.pill.primary{background:var(--a1);color:#120c0c}
+.icon-btn{width:46px;height:46px;display:grid;place-items:center;border-radius:50%;transition:background .2s,color .2s;color:rgba(255,255,255,.85)}
+.icon-btn:hover{background:rgba(255,255,255,.09);color:#fff}
+.icon-btn svg{width:22px;height:22px}
+
+main{display:grid;grid-template-columns:1fr 1fr;gap:28px;min-height:0;padding:0 28px}
+.left{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;gap:18px}
+.stage{position:relative;width:min(100%,calc(100vh - 290px),580px);width:min(100%,calc(100dvh - 290px),580px);aspect-ratio:1;--pulse:1}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%}
+.cover{position:absolute;left:27%;top:27%;width:46%;height:46%;border-radius:50%;object-fit:cover;box-shadow:0 18px 60px rgba(0,0,0,.65);transform:scale(var(--pulse));will-change:transform;background:linear-gradient(135deg,var(--a1),var(--a2))}
+.np{text-align:center;max-width:100%}
+#npTitle{font-size:1.45rem;font-weight:700;letter-spacing:-.01em}
+#npArtist{color:var(--dim);font-size:.95rem;margin-top:4px}
+
+.lyrics{position:relative;min-height:0;overflow:hidden;--pl:1;
+  -webkit-mask-image:linear-gradient(transparent,#000 16%,#000 80%,transparent);
+          mask-image:linear-gradient(transparent,#000 16%,#000 80%,transparent)}
+.lyrics-inner{position:absolute;left:0;right:0;top:0;padding:0 10px;transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.line{font-size:clamp(1.25rem,2.3vw,2.1rem);font-weight:700;line-height:1.22;margin:.5em 0;opacity:.3;transform-origin:left center;
+  transition:opacity .5s,filter .5s,transform .5s;cursor:pointer;color:rgba(255,255,255,.9)}
+.line:hover{opacity:.7!important;filter:none!important}
+.line.active{opacity:1;transform:scale(1.04);scale:var(--pl)}
+.line.active .txt{--p:0%;
+  background:linear-gradient(90deg,#fff calc(var(--p) - 7%),rgba(255,255,255,.42) calc(var(--p) + 7%));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 16px var(--glow,rgba(255,122,89,.6)))}
+.line.pause .txt::before{content:"•  •  •";letter-spacing:.1em}
+.line.pause.active .txt{animation:breathe 1.6s ease-in-out infinite}
+@keyframes breathe{50%{opacity:.4}}
+.nolyrics{position:absolute;inset:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:16px;color:var(--dim);font-size:1.1rem}
+
+footer{padding:8px 28px calc(16px + env(safe-area-inset-bottom))}
+.progress{display:flex;align-items:center;gap:12px;font-size:.78rem;color:var(--dim);font-variant-numeric:tabular-nums}
+.progress span{width:3.2em;text-align:center}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:5px;border-radius:5px;outline:none;cursor:pointer;
+  background:linear-gradient(90deg,var(--a1) var(--v,0%),rgba(255,255,255,.18) var(--v,0%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(0,0,0,.2)}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;background:#fff}
+.controls{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-top:6px}
+.controls .side{display:flex;align-items:center;gap:4px}
+.controls .side.r{justify-content:flex-end}
+.controls .mid{display:flex;align-items:center;gap:12px}
+.play{width:60px;height:60px;border-radius:50%;background:#fff;color:#0b0b10;display:grid;place-items:center;transition:transform .15s}
+.play:hover{transform:scale(1.06)}
+.play svg{width:28px;height:28px}
+.vol{display:flex;align-items:center;gap:6px;width:150px;margin-left:6px}
+
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .3s;z-index:15}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer,.tap{position:fixed;top:0;bottom:0;background:var(--panel);-webkit-backdrop-filter:blur(26px);backdrop-filter:blur(26px);z-index:20;display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.drawer{left:0;width:min(390px,92vw);transform:translateX(-103%);border-right:1px solid var(--line)}
+.tap{right:0;width:min(560px,100vw);transform:translateX(103%);border-left:1px solid var(--line)}
+.drawer.open,.tap.open{transform:none}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px}
+.panel-head h2{font-size:1.1rem;font-weight:700}
+.panel-body{overflow:auto;padding:0 18px 24px;flex:1}
+.drawer h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);margin:18px 6px 8px}
+.row-song{display:grid;grid-template-columns:48px 1fr;gap:12px;align-items:center;width:100%;text-align:left;padding:7px 6px;border-radius:12px;transition:background .2s}
+.row-song:hover{background:rgba(255,255,255,.07)}
+.row-song.current{background:rgba(255,255,255,.12)}
+.row-song.current b{color:var(--a1)}
+.row-song img{width:48px;height:48px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,.08)}
+.row-song b{display:block;font-weight:600;font-size:.95rem}
+.row-song small{color:var(--dim);font-size:.8rem}
+.ver{color:rgba(255,255,255,.3);font-size:.72rem;margin:24px 6px 0}
+
+.hint{color:var(--dim);font-size:.85rem;line-height:1.5;margin-bottom:12px}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit;font-size:.92rem;line-height:1.5;resize:vertical}
+.tap-next{background:rgba(0,0,0,.3);border-radius:14px;padding:14px 16px;margin-bottom:12px;min-height:84px}
+.tap-next small{color:var(--dim);font-size:.75rem;text-transform:uppercase;letter-spacing:.12em}
+#tapNextText{font-size:1.35rem;font-weight:700;margin-top:4px}
+.tapbig{width:100%;height:120px;border-radius:18px;background:var(--a1);color:#120c0c;font-size:2rem;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;user-select:none;touch-action:manipulation;transition:transform .08s}
+.tapbig small{font-size:.75rem;font-weight:600;opacity:.7}
+.tapbig.hit{transform:scale(.97)}
+#tapClock{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--dim);font-size:.85rem}
+#tapList{list-style:none;margin-top:14px;counter-reset:n}
+#tapList li{display:grid;grid-template-columns:4.2em 1fr;gap:10px;padding:6px 8px;border-radius:8px;font-size:.88rem;cursor:pointer;color:var(--dim)}
+#tapList li:hover{background:rgba(255,255,255,.06)}
+#tapList li.done{color:var(--fg)}
+#tapList li.next{background:rgba(255,255,255,.1);color:#fff;font-weight:600}
+#tapList li .tm{font-variant-numeric:tabular-nums;color:var(--a1)}
+#tapList li .pz{opacity:.6;font-style:italic}
+.offset{display:flex;align-items:center;gap:12px;margin:8px 0}
+.offset input{max-width:260px}
+
+.start{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:rgba(6,6,12,.55);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);cursor:pointer;transition:opacity .4s}
+.start.gone{opacity:0;pointer-events:none}
+.start-card{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:24px}
+.start-card img{width:min(240px,56vw);aspect-ratio:1;border-radius:50%;object-fit:cover;box-shadow:0 20px 70px rgba(0,0,0,.6);background:linear-gradient(135deg,var(--a1),var(--a2))}
+.start-card .kicker{color:var(--dim);font-size:.8rem;text-transform:uppercase;letter-spacing:.16em}
+.start-card h1{font-size:1.7rem;font-weight:800;letter-spacing:-.02em}
+.start-card p{color:var(--dim)}
+.start-card .play{margin-top:8px;width:72px;height:72px}
+
+.toast{position:fixed;left:50%;bottom:120px;transform:translate(-50%,20px);background:rgba(20,20,30,.95);border:1px solid var(--line);padding:10px 18px;border-radius:999px;font-size:.9rem;opacity:0;transition:opacity .3s,transform .3s;z-index:50;pointer-events:none;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:860px){
+  header{padding:12px 16px}
+  main{grid-template-columns:1fr;grid-template-rows:auto 1fr;gap:6px;padding:0 16px}
+  .left{gap:8px}
+  .stage{width:min(74vw,36vh);width:min(74vw,36dvh)}
+  #npTitle{font-size:1.1rem}
+  #npArtist{font-size:.82rem}
+  .line{font-size:1.35rem;text-align:center;transform-origin:center}
+  .nolyrics{align-items:center;text-align:center}
+  footer{padding:6px 16px calc(12px + env(safe-area-inset-bottom))}
+  .play{width:54px;height:54px}
+  .vol{display:none}
+  .toast{bottom:150px}
+}
+@media (pointer:coarse){ .vol{display:none} }
+</style>
+</head>
+<body>
+<div id="bg"></div><div id="bgShade"></div>
+
+<div class="app">
+  <header>
+    <div class="logo">Ka<span class="svan">Svan</span>ify</div>
+    <button class="pill" id="openList" aria-label="Vis sange">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Sange
+    </button>
+  </header>
+
+  <main>
+    <section class="left">
+      <div class="stage" id="stage">
+        <canvas id="viz"></canvas>
+        <img id="cover" class="cover" alt="">
+      </div>
+      <div class="np"><div id="npTitle"></div><div id="npArtist"></div></div>
+    </section>
+    <section class="lyrics" id="lyrics">
+      <div class="lyrics-inner" id="lyricsInner"></div>
+      <div class="nolyrics" id="noLyrics" hidden>
+        <p>Ingen tekst til denne sang endnu.</p>
+        <button class="pill" id="noLyricsTap">Lav den med tap</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="progress">
+      <span id="tCur">0:00</span>
+      <input type="range" id="seek" min="0" max="1000" value="0" aria-label="Spoling">
+      <span id="tDur">0:00</span>
+    </div>
+    <div class="controls">
+      <div class="side">
+        <button class="icon-btn" id="btnShare" title="Del link til sangen" aria-label="Del">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+        </button>
+        <button class="icon-btn" id="btnTap" title="Lav tekst med tap" aria-label="Tekst">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h11M4 18h7"/><circle cx="19" cy="17" r="2.5"/></svg>
+        </button>
+      </div>
+      <div class="mid">
+        <button class="icon-btn" id="btnPrev" aria-label="Forrige"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM9.5 12 20 18V6z"/></svg></button>
+        <button class="play" id="btnPlay" aria-label="Afspil"><svg viewBox="0 0 24 24" fill="currentColor"><path id="playIcon" d="M8 5v14l11-7z"/></svg></button>
+        <button class="icon-btn" id="btnNext" aria-label="Næste"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM4 18l10.5-6L4 6z"/></svg></button>
+      </div>
+      <div class="side r">
+        <button class="icon-btn" id="btnRing" title="Skift ring" aria-label="Skift ring">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>
+        </button>
+        <div class="vol">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="opacity:.7"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input type="range" id="vol" min="0" max="1" step="0.01" value="1" aria-label="Lydstyrke">
+        </div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="drawer" id="drawer" aria-label="Sange">
+  <div class="panel-head"><h2>Sange</h2>
+    <button class="icon-btn" data-close aria-label="Luk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="panel-body"><div id="songList"></div><div class="ver">KaSvanify v1.0</div></div>
+</aside>
+
+<aside class="tap" id="tap" aria-label="Tap tekst">
+  <div class="panel-head"><h2>Tekst · <span id="tapSong"></span></h2>
+    <button class="icon-btn" data-close aria-label="Luk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="panel-body">
+    <section id="tapEdit">
+      <p class="hint">Indsæt teksten med én sunget linje per linje. Tomme linjer springes over. Skriv en linje med kun <b>-</b> der, hvor teksten skal forsvinde, fx i en solo.</p>
+      <div class="btnrow">
+        <button class="pill" id="tapLoadBase">Hent grundtekst</button>
+        <button class="pill" id="tapLoadCur">Hent nuværende tekst</button>
+      </div>
+      <textarea id="tapText" spellcheck="false" placeholder="Første linje&#10;Anden linje&#10;-&#10;Linje efter solo"></textarea>
+      <div class="btnrow"><button class="pill primary" id="tapStart">Start – sangen spiller fra begyndelsen</button></div>
+    </section>
+
+    <section id="tapRun" hidden>
+      <p class="hint">Tryk, når linjen <b>begynder</b>. Mellemrum = tap, Backspace = fortryd. Klik på en linje i listen for at tappe igen fra den.</p>
+      <div class="tap-next"><small>Næste linje</small><div id="tapNextText"></div></div>
+      <button class="tapbig" id="tapBtn">TAP<small>eller mellemrum</small></button>
+      <div class="btnrow">
+        <button class="pill" id="tapUndo">↶ Fortryd</button>
+        <button class="pill" id="tapBack">−3 sek</button>
+        <button class="pill" id="tapPause">Pause</button>
+        <span id="tapClock">0:00</span>
+      </div>
+    </section>
+
+    <section id="tapDone" hidden>
+      <p class="hint">Alle linjer har fået en tid. Man trykker typisk lidt for sent, så alle tider er rykket 0,15 sek. frem. Justér, hvis teksten kommer for tidligt eller for sent.</p>
+      <div class="offset"><input type="range" id="tapOffset" min="-0.6" max="0.4" step="0.05" value="-0.15"><span id="tapOffsetVal"></span></div>
+      <div class="btnrow">
+        <button class="pill primary" id="tapTry">Afprøv i afspilleren</button>
+        <button class="pill" id="tapSave">Download .lrc</button>
+        <button class="pill" id="tapRestart">Start forfra</button>
+      </div>
+    </section>
+
+    <ol id="tapList"></ol>
+  </div>
+</aside>
+
+<div class="start" id="start">
+  <div class="start-card">
+    <img id="startCover" alt="">
+    <div class="kicker" id="startKicker">KaSvanify</div>
+    <h1 id="startTitle"></h1>
+    <p id="startArtist"></p>
+    <div class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<audio id="audio" preload="metadata" playsinline></audio>
+
+<script src="sange.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const SAML = (typeof SAMLINGER !== 'undefined' && Array.isArray(SAMLINGER)) ? SAMLINGER : [];
+const DEFAULT_COLORS = [[255,122,89],[124,140,255]];
+const LOCAL_FILE = location.protocol === 'file:';
+
+/* ---------- Hjælpere ---------- */
+const encPath = p => p.split('/').filter(Boolean).map(encodeURIComponent).join('/');
+function slugify(s){
+  return s.toLowerCase().replace(/æ/g,'ae').replace(/ø/g,'oe').replace(/å/g,'aa')
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'sang';
+}
+function hashStr(s){ let h = 2166136261; for (const ch of s){ h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function fmt(t){ if(!isFinite(t) || t < 0) t = 0; const m = Math.floor(t/60), s = Math.floor(t%60); return m + ':' + String(s).padStart(2,'0'); }
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+const rgba = (c,a) => `rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
+const mix = (a,b,f) => [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f];
+let toastTimer;
+function toast(msg, ms){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), ms || 2600); }
+async function fetchText(url){
+  if (LOCAL_FILE) return null;
+  try { const r = await fetch(url, {cache:'no-cache'}); if (!r.ok) return null; return await r.text(); } catch(e){ return null; }
+}
+
+/* ---------- Sangliste ---------- */
+const songs = []; const usedSlugs = new Set();
+SAML.forEach(c => (c.sange || []).forEach(base => {
+  base = String(base).trim(); if (!base) return;
+  const k = base.indexOf(' - ');
+  const artist = k > 0 ? base.slice(0,k).trim() : '';
+  const title  = k > 0 ? base.slice(k+3).trim() : base;
+  const f = encPath(c.mappe || 'sange') + '/' + encodeURIComponent(base);
+  let slug = slugify(title);
+  if (usedSlugs.has(slug)) slug = slugify(artist + '-' + title);
+  let n = 2; const s0 = slug; while (usedSlugs.has(slug)) slug = s0 + '-' + (n++);
+  usedSlugs.add(slug);
+  songs.push({ base, artist, title, coll:c, slug, mp3:f+'.mp3', jpg:f+'.jpg', png:f+'.png', lrc:f+'.lrc', srt:f+'.srt' });
+}));
+
+/* ---------- Tilstand ---------- */
+const audio = $('#audio');
+let cur = -1, started = false;
+const lyr = new Map();                 // base -> {lines:[{t,text}]} eller null
+let lines = [], lineEls = [], active = -2;
+
+/* ---------- Lydanalyse ---------- */
+let actx = null, analyser = null, fbuf = null, wbuf = null, edges = null;
+const NB = 128; const bands = new Float32Array(NB);
+let bass = 0, bassP = 0;
+
+function initAudio(){
+  if (actx || LOCAL_FILE) return;
+  const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e){}
+  try {
+    actx = new AC();
+    const src = actx.createMediaElementSource(audio);
+    analyser = actx.createAnalyser(); analyser.fftSize = 2048; analyser.smoothingTimeConstant = .8;
+    src.connect(analyser); analyser.connect(actx.destination);
+    fbuf = new Uint8Array(analyser.frequencyBinCount); wbuf = new Uint8Array(analyser.fftSize);
+    const bw = actx.sampleRate / analyser.fftSize, lo = 40, hi = Math.min(16000, actx.sampleRate/2);
+    edges = []; for (let i = 0; i <= NB; i++){ const fq = lo * Math.pow(hi/lo, i/NB); edges.push(clamp(Math.round(fq/bw), 1, analyser.frequencyBinCount-1)); }
+  } catch(e){ actx = null; analyser = null; }
+}
+function readAudio(){
+  if (!analyser){ bands.fill(0); bass *= .9; bassP = 0; return; }
+  analyser.getByteFrequencyData(fbuf); analyser.getByteTimeDomainData(wbuf);
+  for (let i = 0; i < NB; i++){
+    const a = edges[i], b = Math.max(edges[i+1], a+1); let s = 0, m = 0;
+    for (let k = a; k < b; k++){ s += fbuf[k]; if (fbuf[k] > m) m = fbuf[k]; }
+    let v = ((s/(b-a))*.5 + m*.5) / 255;
+    v *= 1 + (i/NB) * .7;
+    bands[i] = Math.min(1, Math.pow(v, 1.5));
+  }
+  let bs = 0; const e0 = edges[0], e1 = edges[10];
+  for (let k = e0; k <= e1; k++) bs += fbuf[k];
+  bs /= (e1 - e0 + 1) * 255;
+  bass = bs > bass ? bs : bass * .9 + bs * .1;
+  bassP = clamp((bass - .5) / .45, 0, 1);
+}
+
+/* ---------- Farver fra coveret ---------- */
+function rgb2hsl(r,g,b){ r/=255; g/=255; b/=255; const mx = Math.max(r,g,b), mn = Math.min(r,g,b); let h = 0, s = 0; const l = (mx+mn)/2;
+  if (mx !== mn){ const d = mx-mn; s = l > .5 ? d/(2-mx-mn) : d/(mx+mn);
+    h = mx === r ? ((g-b)/d + (g<b?6:0)) : mx === g ? ((b-r)/d + 2) : ((r-g)/d + 4); h /= 6; }
+  return [h,s,l]; }
+function hsl2rgb(h,s,l){ if (!s) return [l*255,l*255,l*255]; const q = l < .5 ? l*(1+s) : l+s-l*s, p = 2*l-q;
+  const f = t => { if (t<0) t+=1; if (t>1) t-=1; if (t<1/6) return p+(q-p)*6*t; if (t<1/2) return q; if (t<2/3) return p+(q-p)*(2/3-t)*6; return p; };
+  return [f(h+1/3)*255, f(h)*255, f(h-1/3)*255]; }
+function extractColors(img){
+  try {
+    const N = 36, c = document.createElement('canvas'); c.width = c.height = N;
+    const g = c.getContext('2d', {willReadFrequently:true}); g.drawImage(img, 0, 0, N, N);
+    const d = g.getImageData(0, 0, N, N).data, B = 12;
+    const acc = Array.from({length:B}, (_,i) => ({i, w:0, h:0, s:0, l:0}));
+    for (let i = 0; i < d.length; i += 4){
+      const [h,s,l] = rgb2hsl(d[i], d[i+1], d[i+2]);
+      if (s < .2 || l < .12 || l > .92) continue;
+      const w = s*s*(1 - Math.abs(l-.5)); const a = acc[Math.floor(h*B) % B];
+      a.w += w; a.h += h*w; a.s += s*w; a.l += l*w;
+    }
+    const order = acc.filter(a => a.w > 0).sort((x,y) => y.w - x.w);
+    if (!order.length) return DEFAULT_COLORS;
+    const pick = a => hsl2rgb(a.h/a.w, Math.max(.55, a.s/a.w), clamp(a.l/a.w, .56, .68));
+    const A = order[0];
+    const Bk = order.find(o => { const dd = Math.min(Math.abs(o.i-A.i), B-Math.abs(o.i-A.i)); return dd >= 2 && o.w > A.w*.08; });
+    return [pick(A), Bk ? pick(Bk) : hsl2rgb((A.h/A.w + .12) % 1, .6, .62)];
+  } catch(e){ return DEFAULT_COLORS; }
+}
+let col1 = DEFAULT_COLORS[0].slice(), col2 = DEFAULT_COLORS[1].slice();
+let tgt1 = col1.slice(), tgt2 = col2.slice();
+function setColors(cs){
+  tgt1 = cs[0]; tgt2 = cs[1];
+  const r = document.documentElement.style;
+  r.setProperty('--a1', rgba(cs[0],1)); r.setProperty('--a2', rgba(cs[1],1));
+  $('#lyrics').style.setProperty('--glow', rgba(cs[0],.65));
+}
+
+/* ---------- Visualisering ---------- */
+const cv = $('#viz'), g = cv.getContext('2d'), stage = $('#stage');
+let dpr = 1, variant = 0, needClear = true;
+function resize(){ dpr = Math.min(2, window.devicePixelRatio || 1); const r = cv.getBoundingClientRect();
+  cv.width = Math.max(1, Math.round(r.width*dpr)); cv.height = Math.max(1, Math.round(r.height*dpr)); needClear = true; }
+new ResizeObserver(resize).observe(cv);
+
+function closedCurve(pts){
+  const L = pts.length; g.beginPath();
+  g.moveTo((pts[L-1][0]+pts[0][0])/2, (pts[L-1][1]+pts[0][1])/2);
+  for (let i = 0; i < L; i++){ const a = pts[i], b = pts[(i+1)%L]; g.quadraticCurveTo(a[0], a[1], (a[0]+b[0])/2, (a[1]+b[1])/2); }
+  g.closePath();
+}
+const idle = (i,t) => .035 * (1 + Math.sin(t*1.6 + i*.25));
+
+const VARIANTS = [
+  { name:'Stråler', draw(P){
+      const {cx,cy,R,maxL,t,u} = P, n = 64, step = Math.PI/n;
+      const lw = Math.max(1.5*u, (2*Math.PI*R/(2*n))*.55), sway = Math.sin(t*.15)*.12;
+      g.clearRect(0,0,P.w,P.h); g.lineCap = 'round'; g.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < n; i++){
+        const v = Math.max(bands[Math.floor(i*NB*.85/n)], idle(i,t));
+        const len = 3*u + v*maxL*.92, c = mix(col1, col2, i/n);
+        for (const side of [1,-1]){
+          const a = -Math.PI/2 + side*(i+.5)*step + sway;
+          const x1 = cx+Math.cos(a)*R, y1 = cy+Math.sin(a)*R, x2 = cx+Math.cos(a)*(R+len), y2 = cy+Math.sin(a)*(R+len);
+          g.strokeStyle = rgba(c,.18); g.lineWidth = lw*2.8; g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+          g.strokeStyle = rgba(c,.95); g.lineWidth = lw;     g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+        }
+      }
+  }},
+  { name:'Bølge', draw(P){
+      const {cx,cy,R,maxL,t,u} = P, n = 60, pts = [], echo = [];
+      g.clearRect(0,0,P.w,P.h); g.globalCompositeOperation = 'lighter';
+      const rot = t*.08;
+      for (let k = 0; k < 2*n; k++){
+        const idx = k < n ? k : 2*n-1-k;
+        const v = Math.max(bands[Math.floor(idx*NB*.8/n)], idle(idx,t));
+        const a = -Math.PI/2 + k/(2*n)*Math.PI*2;
+        const r = R + 3*u + v*maxL*.72;
+        pts.push([cx+Math.cos(a)*r, cy+Math.sin(a)*r]);
+        const re = R + (r-R)*1.28 + 6*u, ae = a - rot;
+        echo.push([cx+Math.cos(ae)*re, cy+Math.sin(ae)*re]);
+      }
+      const gr = g.createRadialGradient(cx,cy,R*.9,cx,cy,R+maxL*.8);
+      gr.addColorStop(0, rgba(col1,.55)); gr.addColorStop(1, rgba(col2,0));
+      closedCurve(pts); g.fillStyle = gr; g.fill();
+      g.lineWidth = 2.5*u; g.strokeStyle = rgba(col2,.9); g.stroke();
+      closedCurve(echo); g.lineWidth = 1.5*u; g.strokeStyle = rgba(col1,.3); g.stroke();
+      if (analyser){
+        const m = 200, rr = R + maxL*.06; g.beginPath();
+        for (let j = 0; j <= m; j++){
+          const s = (wbuf[Math.floor(j/m*(wbuf.length-1))] - 128) / 128;
+          const a = -Math.PI/2 + j/m*Math.PI*2 + rot*2, r = rr + s*maxL*.18;
+          const x = cx+Math.cos(a)*r, y = cy+Math.sin(a)*r; j ? g.lineTo(x,y) : g.moveTo(x,y);
+        }
+        g.lineWidth = 1.4*u; g.strokeStyle = rgba(col1,.8); g.stroke();
+      }
+  }},
+  { name:'Prikker', draw(P){
+      const {cx,cy,R,maxL,t,u} = P;
+      g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,.24)'; g.fillRect(0,0,P.w,P.h);
+      g.globalCompositeOperation = 'lighter';
+      const ranges = [[0,40],[36,80],[76,118]];
+      for (let ring = 0; ring < 3; ring++){
+        const n = 36 + ring*12, rr = R + maxL*(.1 + ring*.27), dir = ring % 2 ? 1 : -1;
+        const rot = t*.14*dir*(1 + ring*.3), [b0,b1] = ranges[ring], c = ring === 1 ? col2 : col1;
+        for (let i = 0; i < n; i++){
+          const half = i < n/2 ? i : n-1-i;
+          const v = Math.max(bands[b0 + Math.floor(half/(n/2)*(b1-b0))], idle(i+ring*7,t));
+          const a = rot + i/n*Math.PI*2, r = rr + v*maxL*.2;
+          g.fillStyle = rgba(c, .3 + v*.7);
+          g.beginPath(); g.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r, (1.3 + v*5.5)*u, 0, Math.PI*2); g.fill();
+        }
+      }
+  }}
+];
+
+/* ---------- Tekst ---------- */
+function parseLRC(txt){
+  const out = []; let off = 0; const re = /\[(\d{1,3}):(\d{1,2}(?:[.:]\d{1,3})?)\]/g;
+  txt.replace(/\r/g,'').split('\n').forEach(raw => {
+    raw = raw.trim();
+    const mo = raw.match(/^\[offset:\s*([+-]?\d+)\s*\]/i); if (mo){ off = parseInt(mo[1],10)/1000; return; }
+    const times = []; let last = 0, m; re.lastIndex = 0;
+    while ((m = re.exec(raw))){ if (m.index !== last) break; times.push(parseInt(m[1],10)*60 + parseFloat(m[2].replace(':','.'))); last = re.lastIndex; }
+    if (!times.length) return;
+    const text = raw.slice(last).trim();
+    times.forEach(t => out.push({t, text}));
+  });
+  out.forEach(l => l.t = Math.max(0, l.t - off));
+  return out.sort((a,b) => a.t - b.t);
+}
+function parseSRT(txt){
+  const ts = s => { const m = s && s.match(/(\d+):(\d+):(\d+)[,.](\d+)/); return m ? (+m[1])*3600 + (+m[2])*60 + (+m[3]) + (+m[4])/1000 : null; };
+  const out = [];
+  txt.replace(/\r/g,'').trim().split(/\n\s*\n/).forEach(b => {
+    const ls = b.split('\n'), k = ls.findIndex(l => l.includes('-->')); if (k < 0) return;
+    const [a,e] = ls[k].split('-->'), t = ts(a); if (t == null) return;
+    out.push({t, end:ts(e), text:ls.slice(k+1).join(' ').replace(/<[^>]+>/g,'').trim()});
+  });
+  out.sort((a,b) => a.t - b.t);
+  const res = [];
+  out.forEach((l,i) => { res.push({t:l.t, text:l.text}); const nx = out[i+1]; if (l.end != null && (!nx || nx.t - l.end > 2)) res.push({t:l.end, text:''}); });
+  return res;
+}
+async function loadLyrics(s){
+  renderLyrics(null, true);
+  let L = lyr.get(s.base);
+  if (L === undefined){
+    let txt = await fetchText(s.lrc);
+    if (txt) L = {lines:parseLRC(txt)};
+    else { txt = await fetchText(s.srt); L = txt ? {lines:parseSRT(txt)} : null; }
+    if (L && !L.lines.length) L = null;
+    if (!LOCAL_FILE) lyr.set(s.base, L);
+  }
+  if (songs[cur] === s) renderLyrics(L);
+}
+function renderLyrics(L, loading){
+  const inner = $('#lyricsInner'); inner.innerHTML = '';
+  lines = L ? L.lines : []; lineEls = []; active = -2;
+  $('#noLyrics').hidden = !!L || !!loading;
+  lines.forEach(l => {
+    const d = document.createElement('div'); d.className = 'line' + (l.text ? '' : ' pause');
+    const sp = document.createElement('span'); sp.className = 'txt'; sp.textContent = l.text; d.appendChild(sp);
+    d.addEventListener('click', () => { audio.currentTime = l.t + .01; if (audio.paused) doPlay(); });
+    inner.appendChild(d); lineEls.push(d);
+  });
+  setActive(findActive(audio.currentTime || 0), true);
+}
+function findActive(t){ let i = -1; for (let k = 0; k < lines.length; k++){ if (lines[k].t <= t) i = k; else break; } return i; }
+function setActive(i, instant){
+  if (i === active && !instant) return; active = i;
+  const ref = Math.max(0, i);
+  lineEls.forEach((el,k) => {
+    const isA = k === i; el.classList.toggle('active', isA);
+    if (isA){ el.style.opacity = ''; el.style.filter = ''; }
+    else { const d = Math.abs(k-ref) + (i < 0 ? 1 : 0); el.style.opacity = Math.max(.12, .5 - d*.08); el.style.filter = 'blur(' + Math.min(d,5)*.8 + 'px)'; }
+  });
+  centerOn(ref, instant);
+}
+function centerOn(k, instant){
+  const inner = $('#lyricsInner'), el = lineEls[k];
+  if (!el){ inner.style.transform = ''; return; }
+  const y = $('#lyrics').clientHeight*.42 - (el.offsetTop + el.offsetHeight/2);
+  if (instant){ inner.style.transition = 'none'; inner.style.transform = `translateY(${y}px)`; void inner.offsetHeight; inner.style.transition = ''; }
+  else inner.style.transform = `translateY(${y}px)`;
+}
+window.addEventListener('resize', () => centerOn(Math.max(0, active), true));
+function updateLyrics(t){
+  if (!lines.length) return;
+  const i = findActive(t); if (i !== active) setActive(i);
+  if (i >= 0 && lines[i].text){
+    const l = lines[i], nx = lines[i+1], words = l.text.split(/\s+/).length;
+    let dur = Math.max(1, words*.45 + .4); if (nx) dur = Math.min(dur, Math.max(.3, nx.t - l.t));
+    const p = clamp((t - l.t)/dur, 0, 1);
+    lineEls[i].firstChild.style.setProperty('--p', (p*114 - 7).toFixed(1) + '%');
+  }
+}
+
+/* ---------- Afspilning ---------- */
+const cover = $('#cover');
+cover.addEventListener('load', () => { $('#bg').style.backgroundImage = `url("${cover.src}")`; setColors(extractColors(cover)); });
+cover.addEventListener('error', () => {
+  const s = songs[cur]; if (!s) return;
+  if (cover.dataset.try === 'jpg'){ cover.dataset.try = 'png'; cover.src = s.png; $('#startCover').src = s.png; }
+  else { cover.removeAttribute('src'); $('#bg').style.backgroundImage = 'none'; setColors(DEFAULT_COLORS); }
+});
+
+function loadSong(i, play){
+  if (!songs.length) return;
+  cur = (i + songs.length) % songs.length; const s = songs[cur];
+  audio.src = s.mp3;
+  cover.dataset.try = 'jpg'; cover.src = s.jpg; $('#startCover').src = s.jpg;
+  $('#npTitle').textContent = s.title;
+  $('#npArtist').textContent = (s.artist ? s.artist + ' · ' : '') + s.coll.navn;
+  $('#startTitle').textContent = s.title; $('#startArtist').textContent = s.artist;
+  document.title = s.title + ' · KaSvanify';
+  if (location.hash.slice(1) !== s.slug) history.replaceState(null, '', '#' + s.slug);
+  variant = hashStr(s.base) % VARIANTS.length; needClear = true;
+  document.querySelectorAll('.row-song').forEach(b => b.classList.toggle('current', +b.dataset.i === cur));
+  updateMediaSession(s);
+  loadLyrics(s);
+  if (play) doPlay();
+}
+function doPlay(){
+  initAudio();
+  if (actx && actx.state === 'suspended') actx.resume();
+  const p = audio.play();
+  if (p && p.then) p.then(() => { started = true; $('#start').classList.add('gone'); })
+                     .catch(err => { if (err && err.name === 'NotAllowedError') $('#start').classList.remove('gone'); });
+}
+function togglePlay(){ if (audio.paused) doPlay(); else audio.pause(); }
+function step(dir){
+  if (dir < 0 && audio.currentTime > 3){ audio.currentTime = 0; return; }
+  loadSong(cur + dir, started);
+}
+audio.addEventListener('play',  () => { $('#playIcon').setAttribute('d','M6 5h4v14H6zM14 5h4v14h-4z'); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+audio.addEventListener('pause', () => { $('#playIcon').setAttribute('d','M8 5v14l11-7z'); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
+audio.addEventListener('ended', () => {
+  if ($('#tap').classList.contains('open')){ if (tap.state === 'run') toast('Sangen sluttede, før alle linjer fik en tid'); return; }
+  const nx = songs[cur+1];
+  if (nx && nx.coll === songs[cur].coll) loadSong(cur+1, true);
+});
+audio.addEventListener('error', () => { if (audio.src) toast('Kunne ikke hente lydfilen – tjek at filnavnet passer præcist', 4500); });
+audio.addEventListener('loadedmetadata', () => { $('#tDur').textContent = fmt(audio.duration); });
+
+/* Spolelinje og lydstyrke */
+const seek = $('#seek'); let seeking = false;
+seek.addEventListener('pointerdown', () => seeking = true);
+seek.addEventListener('input', () => { seeking = true; seek.style.setProperty('--v', seek.value/10 + '%'); $('#tCur').textContent = fmt(seek.value/1000*(audio.duration||0)); });
+seek.addEventListener('change', () => { if (audio.duration) audio.currentTime = seek.value/1000*audio.duration; seeking = false; });
+const vol = $('#vol');
+vol.addEventListener('input', () => { audio.volume = +vol.value; vol.style.setProperty('--v', vol.value*100 + '%'); });
+vol.style.setProperty('--v','100%');
+
+/* Mediesession (låseskærm) */
+function updateMediaSession(s){
+  if (!('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({ title:s.title, artist:s.artist, album:s.coll.navn,
+      artwork:[{src:new URL(s.jpg, location.href).href, sizes:'512x512', type:'image/jpeg'}] });
+    navigator.mediaSession.setActionHandler('play', doPlay);
+    navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+    navigator.mediaSession.setActionHandler('previoustrack', () => step(-1));
+    navigator.mediaSession.setActionHandler('nexttrack', () => step(1));
+    navigator.mediaSession.setActionHandler('seekto', d => { audio.currentTime = d.seekTime; });
+  } catch(e){}
+}
+
+/* ---------- Deling ---------- */
+async function share(){
+  const s = songs[cur]; if (!s) return;
+  const url = location.href.split('#')[0] + '#' + s.slug;
+  if (navigator.share && matchMedia('(pointer:coarse)').matches){
+    try { await navigator.share({title:s.title + ' · KaSvanify', url}); return; } catch(e){ if (e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(url); toast('Link kopieret'); }
+  catch(e){ window.prompt('Kopiér linket:', url); }
+}
+window.addEventListener('hashchange', () => {
+  const i = songs.findIndex(s => s.slug === location.hash.slice(1));
+  if (i >= 0 && i !== cur) loadSong(i, started);
+});
+
+/* ---------- Skuffe med sange ---------- */
+function buildList(){
+  const box = $('#songList'); box.innerHTML = '';
+  SAML.forEach(c => {
+    const ss = songs.filter(s => s.coll === c); if (!ss.length) return;
+    const h = document.createElement('h3'); h.textContent = c.navn; box.appendChild(h);
+    ss.forEach(s => {
+      const b = document.createElement('button'); b.className = 'row-song'; b.dataset.i = songs.indexOf(s);
+      b.innerHTML = '<img loading="lazy" alt=""><span><b></b><small></small></span>';
+      const im = b.querySelector('img'); im.src = s.jpg; im.onerror = () => { im.onerror = null; im.src = s.png; };
+      b.querySelector('b').textContent = s.title; b.querySelector('small').textContent = s.artist;
+      b.addEventListener('click', () => { loadSong(+b.dataset.i, true); closePanels(); });
+      box.appendChild(b);
+    });
+  });
+}
+function openPanel(id){ closePanels(); $(id).classList.add('open'); $('#scrim').classList.add('on'); }
+function closePanels(){ $('#drawer').classList.remove('open'); $('#tap').classList.remove('open'); $('#scrim').classList.remove('on'); }
+$('#scrim').addEventListener('click', closePanels);
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closePanels));
+
+/* ---------- Tap-tilstand ---------- */
+const tap = { song:null, lines:[], times:[], old:[], state:'edit' };
+function linesToText(ls){ return ls.map(l => l.text || '-').join('\n'); }
+async function openTap(){
+  const s = songs[cur]; if (!s) return;
+  openPanel('#tap'); $('#tapSong').textContent = s.title;
+  $('#tapLoadBase').hidden = !s.coll.grundtekst;
+  const L = lyr.get(s.base); $('#tapLoadCur').hidden = !(L && L.lines.length);
+  if (tap.song !== s){
+    tap.song = s; tap.lines = []; tap.times = []; tap.old = []; tap.state = 'edit';
+    $('#tapText').value = '';
+    if (L && L.lines.length) $('#tapText').value = linesToText(L.lines);
+    else if (s.coll.grundtekst) loadBase();
+  }
+  showTap();
+}
+async function loadBase(){
+  const s = tap.song; if (!s || !s.coll.grundtekst) return;
+  const t = await fetchText(encPath(s.coll.mappe) + '/' + encodeURIComponent(s.coll.grundtekst));
+  if (t == null){ toast('Fandt ikke ' + s.coll.grundtekst + ' i ' + s.coll.mappe); return; }
+  $('#tapText').value = t.replace(/\r/g,'').trim();
+}
+function showTap(){
+  $('#tapEdit').hidden = tap.state !== 'edit';
+  $('#tapRun').hidden  = tap.state !== 'run';
+  $('#tapDone').hidden = tap.state !== 'done';
+  $('#tapList').hidden = tap.state === 'edit';
+  renderTapList();
+}
+function renderTapList(){
+  const ol = $('#tapList'); ol.innerHTML = ''; const n = tap.times.length;
+  tap.lines.forEach((text,i) => {
+    const li = document.createElement('li');
+    li.className = i < n ? 'done' : (i === n && tap.state === 'run' ? 'next' : '');
+    const tm = tap.times[i] != null ? fmt(tap.times[i]) + '.' + String(Math.floor((tap.times[i]%1)*10)) : '—';
+    li.innerHTML = '<span class="tm"></span><span></span>';
+    li.firstChild.textContent = tm;
+    if (text) li.lastChild.textContent = text; else { li.lastChild.textContent = '(pause)'; li.lastChild.className = 'pz'; }
+    li.addEventListener('click', () => tapFrom(i));
+    ol.appendChild(li);
+  });
+  const nx = tap.lines[n];
+  $('#tapNextText').textContent = n >= tap.lines.length ? 'Færdig' : (nx ? nx : '(pause – teksten forsvinder)');
+  const el = ol.querySelector('li.next'); if (el) el.scrollIntoView({block:'center', behavior:'smooth'});
+}
+function tapStart(){
+  const raw = $('#tapText').value.replace(/\r/g,'').split('\n').map(x => x.trim()).filter(x => x.length);
+  if (!raw.length){ toast('Indsæt teksten først'); return; }
+  tap.lines = raw.map(x => x === '-' ? '' : x); tap.times = []; tap.old = []; tap.state = 'run';
+  showTap(); audio.currentTime = 0; doPlay();
+}
+function tapHit(){
+  if (tap.state !== 'run' || tap.times.length >= tap.lines.length) return;
+  tap.times.push(audio.currentTime);
+  const b = $('#tapBtn'); b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 90);
+  if (tap.times.length === tap.lines.length){ tap.state = 'done'; showTap(); } else renderTapList();
+}
+function tapUndo(){
+  if (!tap.times.length) return;
+  const t = tap.times.pop(); tap.state = 'run'; showTap();
+  audio.currentTime = Math.max(0, t - 2.5);
+}
+function tapFrom(i){
+  if (!tap.lines.length) return;
+  tap.old = tap.times.slice(); tap.times = tap.times.slice(0, i); tap.state = 'run'; showTap();
+  const ref = tap.old[i] != null ? tap.old[i] - 3 : (i > 0 ? tap.times[i-1] : 0);
+  audio.currentTime = Math.max(0, ref); if (audio.paused) doPlay();
+}
+function tapOffset(){ return parseFloat($('#tapOffset').value); }
+function tapResult(){ const o = tapOffset(); return tap.lines.map((text,i) => ({t:Math.max(0, tap.times[i] + o), text})); }
+function lrcTime(t){ const cs = Math.round(Math.max(0,t)*100), m = Math.floor(cs/6000), r = cs - m*6000;
+  return '[' + String(m).padStart(2,'0') + ':' + String(Math.floor(r/100)).padStart(2,'0') + '.' + String(r%100).padStart(2,'0') + ']'; }
+function updOffsetLabel(){ const o = tapOffset(); $('#tapOffsetVal').textContent = (o > 0 ? '+' : o < 0 ? '−' : '') + Math.abs(o).toFixed(2).replace('.',',') + ' sek'; }
+$('#tapOffset').addEventListener('input', updOffsetLabel); updOffsetLabel();
+$('#tapStart').addEventListener('click', tapStart);
+$('#tapLoadBase').addEventListener('click', loadBase);
+$('#tapLoadCur').addEventListener('click', () => { const L = lyr.get(tap.song && tap.song.base); if (L) $('#tapText').value = linesToText(L.lines); });
+$('#tapBtn').addEventListener('pointerdown', e => { e.preventDefault(); tapHit(); });
+$('#tapUndo').addEventListener('click', tapUndo);
+$('#tapBack').addEventListener('click', () => { audio.currentTime = Math.max(0, audio.currentTime - 3); });
+$('#tapPause').addEventListener('click', togglePlay);
+$('#tapRestart').addEventListener('click', () => { tap.state = 'edit'; tap.times = []; showTap(); });
+$('#tapTry').addEventListener('click', () => {
+  const s = tap.song, res = tapResult(); lyr.set(s.base, {lines:res});
+  if (songs[cur] === s) renderLyrics(lyr.get(s.base));
+  closePanels(); audio.currentTime = Math.max(0, res[0].t - 3); doPlay();
+  toast('Teksten er lagt ind. Husk at downloade .lrc-filen, ellers forsvinder den, når siden lukkes.', 5000);
+});
+$('#tapSave').addEventListener('click', () => {
+  const s = tap.song, res = tapResult();
+  let out = `[ti:${s.title}]\n[ar:${s.artist}]\n[by:KaSvanify tap]\n`;
+  res.forEach(l => out += lrcTime(l.t) + l.text + '\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([out], {type:'text/plain;charset=utf-8'}));
+  a.download = s.base + '.lrc'; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast('Læg filen i ' + s.coll.mappe + ' ved siden af mp3-filen', 4000);
+});
+setInterval(() => { if (tap.state === 'run') $('#tapClock').textContent = fmt(audio.currentTime); }, 200);
+
+/* ---------- Knapper og taster ---------- */
+$('#btnPlay').addEventListener('click', togglePlay);
+$('#btnPrev').addEventListener('click', () => step(-1));
+$('#btnNext').addEventListener('click', () => step(1));
+$('#btnShare').addEventListener('click', share);
+$('#btnTap').addEventListener('click', openTap);
+$('#noLyricsTap').addEventListener('click', openTap);
+$('#openList').addEventListener('click', () => openPanel('#drawer'));
+$('#btnRing').addEventListener('click', () => {
+  let v; do { v = Math.floor(Math.random()*VARIANTS.length); } while (v === variant && VARIANTS.length > 1);
+  variant = v; needClear = true; toast('Ring: ' + VARIANTS[v].name, 1400);
+});
+$('#start').addEventListener('click', doPlay);
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (e.key === 'Escape'){ closePanels(); return; }
+  if (tag === 'textarea' || (tag === 'input' && e.target.type !== 'range')) return;
+  const tapRun = $('#tap').classList.contains('open') && tap.state === 'run';
+  if (e.code === 'Space'){
+    e.preventDefault();
+    if (document.activeElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur();
+    if (tapRun) tapHit(); else togglePlay();
+    return;
+  }
+  if (tapRun && e.key === 'Backspace'){ e.preventDefault(); tapUndo(); return; }
+  if (tag === 'input') return;
+  if (e.key === 'ArrowRight') audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
+  if (e.key === 'ArrowLeft')  audio.currentTime = Math.max(0, audio.currentTime - 5);
+});
+
+/* ---------- Hovedløkke ---------- */
+function frame(ms){
+  requestAnimationFrame(frame);
+  const t = ms/1000; readAudio();
+  for (let k = 0; k < 3; k++){ col1[k] += (tgt1[k]-col1[k])*.05; col2[k] += (tgt2[k]-col2[k])*.05; }
+  const pulse = 1 + bassP*.07;
+  stage.style.setProperty('--pulse', pulse.toFixed(3));
+  $('#lyrics').style.setProperty('--pl', (1 + bassP*.035).toFixed(3));
+  const w = cv.width, h = cv.height;
+  if (needClear){ g.globalCompositeOperation = 'source-over'; g.clearRect(0,0,w,h); needClear = false; }
+  const u = w/600, R = w*.23*pulse + 5*u;
+  VARIANTS[variant].draw({cx:w/2, cy:h/2, R, maxL:w*.5 - R - 6*u, t, u, w, h});
+  g.globalCompositeOperation = 'source-over';
+  const ct = audio.currentTime || 0;
+  if (!seeking && audio.duration){ seek.value = Math.round(ct/audio.duration*1000); seek.style.setProperty('--v', (ct/audio.duration*100) + '%'); $('#tCur').textContent = fmt(ct); }
+  updateLyrics(ct);
+}
+
+/* ---------- Start ---------- */
+buildList();
+if (!songs.length){
+  $('#startTitle').textContent = 'Ingen sange endnu'; $('#startArtist').textContent = 'Skriv sangene ind i sange.js';
+} else {
+  const fromLink = songs.findIndex(s => s.slug === location.hash.slice(1));
+  if (fromLink >= 0) $('#startKicker').textContent = 'Delt med dig';
+  loadSong(fromLink >= 0 ? fromLink : 0, false);
+}
+if (LOCAL_FILE) setTimeout(() => toast('Åbnet som fil: Visualisering og tekst virker først, når siden ligger online', 6000), 400);
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
