@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.2 -->
+<!-- KaSvanify v1.3 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -54,15 +54,19 @@ main{display:grid;grid-template-columns:1fr 1fr;gap:28px;min-height:0;padding:0 
 .lyrics{position:relative;min-height:0;overflow:hidden;--pl:1;
   -webkit-mask-image:linear-gradient(transparent,#000 16%,#000 80%,transparent);
           mask-image:linear-gradient(transparent,#000 16%,#000 80%,transparent)}
-.lyrics-inner{position:absolute;left:0;right:0;top:0;padding:0 10px;transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.lyrics-inner{position:absolute;left:0;right:0;top:0;padding:0 9% 0 10px;transition:transform .7s cubic-bezier(.2,.8,.2,1)}
 .line{font-size:clamp(1.25rem,2.3vw,2.1rem);font-weight:700;line-height:1.22;margin:.5em 0;opacity:.3;transform-origin:left center;
   transition:opacity .5s,filter .5s,transform .5s;cursor:pointer;color:rgba(255,255,255,.9)}
-.line:hover{opacity:.7!important;filter:none!important}
-.line.active{opacity:1;transform:scale(1.04);scale:var(--pl)}
-.line.active .txt{--p:0%;
-  background:linear-gradient(90deg,#fff calc(var(--p) - 7%),rgba(255,255,255,.42) calc(var(--p) + 7%));
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 0 16px var(--glow,rgba(255,122,89,.6)))}
+.line:not(.active):hover{opacity:.7!important;filter:none!important}
+.line.active{opacity:1;transform:scale(1.04);scale:var(--pl);color:#fff}
+.line .w{display:inline-block}
+.line.active .w{text-shadow:0 0 var(--gb,14px) var(--glow,rgba(255,122,89,.6));animation-duration:.45s;animation-fill-mode:both}
+.lyrics[data-ws="0"] .line.active .w{animation-name:wUp;animation-timing-function:cubic-bezier(.2,1.4,.4,1)}
+.lyrics[data-ws="1"] .line.active .w{animation-name:wDrop;animation-duration:.5s;animation-timing-function:cubic-bezier(.3,1.5,.5,1)}
+.lyrics[data-ws="2"] .line.active .w{animation-name:wZoom;animation-timing-function:ease-out}
+@keyframes wUp{from{opacity:0;transform:translateY(.6em)}}
+@keyframes wDrop{from{opacity:0;transform:translateY(-.9em) rotate(-4deg)}}
+@keyframes wZoom{from{opacity:0;transform:scale(1.6);filter:blur(8px)}}
 .line.pause .txt::before{content:"•  •  •";letter-spacing:.1em}
 .line.pause.active .txt{animation:breathe 1.6s ease-in-out infinite}
 @keyframes breathe{50%{opacity:.4}}
@@ -175,6 +179,7 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
   .stage{width:min(74vw,36vh);width:min(74vw,36dvh)}
   #npTitle{font-size:1.1rem}
   #npArtist{font-size:.82rem}
+  .lyrics-inner{padding:0 6%}
   .line{font-size:1.35rem;text-align:center;transform-origin:center}
   .nolyrics{align-items:center;text-align:center}
   footer{padding:6px 16px calc(12px + env(safe-area-inset-bottom))}
@@ -579,7 +584,13 @@ function renderLyrics(L, loading){
   $('#noLyrics').hidden = !!L || !!loading;
   lines.forEach(l => {
     const d = document.createElement('div'); d.className = 'line' + (l.text ? '' : ' pause');
-    const sp = document.createElement('span'); sp.className = 'txt'; sp.textContent = l.text; d.appendChild(sp);
+    const sp = document.createElement('span'); sp.className = 'txt';
+    l.text.split(/\s+/).filter(Boolean).forEach((w,k) => {
+      if (k) sp.appendChild(document.createTextNode(' '));
+      const ws = document.createElement('span'); ws.className = 'w'; ws.textContent = w;
+      ws.style.animationDelay = Math.min(k*45, 400) + 'ms'; sp.appendChild(ws);
+    });
+    d.appendChild(sp);
     d.addEventListener('click', () => { audio.currentTime = l.t + .01; if (audio.paused) doPlay(); });
     inner.appendChild(d); lineEls.push(d);
   });
@@ -592,7 +603,7 @@ function setActive(i, instant){
   lineEls.forEach((el,k) => {
     const isA = k === i; el.classList.toggle('active', isA);
     if (isA){ el.style.opacity = ''; el.style.filter = ''; }
-    else { const d = Math.abs(k-ref) + (i < 0 ? 1 : 0); el.style.opacity = Math.max(.12, .5 - d*.08); el.style.filter = 'blur(' + Math.min(d,5)*.8 + 'px)'; }
+    else { const d = Math.abs(k-ref) + (i < 0 ? 1 : 0); el.style.opacity = Math.max(.05, .24 - d*.05); el.style.filter = 'blur(' + (1.4 + Math.min(d,5)*1.1).toFixed(1) + 'px)'; }
   });
   centerOn(ref, instant);
 }
@@ -607,12 +618,6 @@ window.addEventListener('resize', () => centerOn(Math.max(0, active), true));
 function updateLyrics(t){
   if (!lines.length) return;
   const i = findActive(t); if (i !== active) setActive(i);
-  if (i >= 0 && lines[i].text){
-    const l = lines[i], nx = lines[i+1], words = l.text.split(/\s+/).length;
-    let dur = Math.max(1, words*.45 + .4); if (nx) dur = Math.min(dur, Math.max(.3, nx.t - l.t));
-    const p = clamp((t - l.t)/dur, 0, 1);
-    lineEls[i].firstChild.style.setProperty('--p', (p*114 - 7).toFixed(1) + '%');
-  }
 }
 
 /* ---------- Afspilning ---------- */
@@ -635,6 +640,7 @@ function loadSong(i, play){
   document.title = s.title + ' · KaSvanify';
   if (location.hash.slice(1) !== s.slug) history.replaceState(null, '', '#' + s.slug);
   variant = hashStr(s.base) % VARIANTS.length; needClear = true;
+  $('#lyrics').dataset.ws = hashStr(s.base + '·ord') % 3;   // ordenes indgang: 0 stiger op, 1 falder ned, 2 zoomer ind
   document.querySelectorAll('.row-song').forEach(b => b.classList.toggle('current', +b.dataset.i === cur));
   updateMediaSession(s);
   loadLyrics(s);
@@ -977,7 +983,7 @@ function frame(ms){
   for (let k = 0; k < 3; k++){ col1[k] += (tgt1[k]-col1[k])*.05; col2[k] += (tgt2[k]-col2[k])*.05; }
   const pulse = 1 + bassP*.07;
   stage.style.setProperty('--pulse', pulse.toFixed(3));
-  $('#lyrics').style.setProperty('--pl', (1 + bassP*.035).toFixed(3));
+  const ly = $('#lyrics'); ly.style.setProperty('--pl', (1 + bassP*.035).toFixed(3)); ly.style.setProperty('--gb', (10 + bassP*22).toFixed(1) + 'px');
   const w = cv.width, h = cv.height;
   if (needClear){ g.globalCompositeOperation = 'source-over'; g.clearRect(0,0,w,h); needClear = false; }
   const u = w/600, R = w*.21*pulse + 3*u;   // starter lige bag coverets sider – hjørnerne dækker de korteste udslag
@@ -989,7 +995,7 @@ function frame(ms){
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.2';
+const VERSION = '1.3';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
 buildList(); buildHome();
 const fromLink = songs.findIndex(s => s.slug === location.hash.slice(1));
