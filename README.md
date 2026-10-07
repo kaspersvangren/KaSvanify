@@ -39,13 +39,15 @@ I `sange.js` kan du bestemme rækkefølgen og give samlingerne pænere navne. Sa
 3. Tryk **Start**, og tryk mellemrum (eller den store knap) hver gang en linje begynder.
    Backspace fortryder. Klik på en linje i listen for at tappe igen fra den.
 4. Tryk **Afprøv i afspilleren**. Er teksten lidt for tidlig eller sen, så justér forskydningen.
-5. Tryk **Download .lrc**, og læg filen i samme mappe som mp3-filen.
+5. Tryk **Gem på GitHub**. Første gang på en ny enhed beder siden om en GitHub-nøgle (vejledningen står på siden):
+   en fine-grained token med adgang til kun KaSvanify og *Contents: Read and write*. Nøglen gemmes kun i den browser.
+   Alternativt: **Download .lrc** og læg filen i samme mappe som mp3-filen.
 
 ### Ret timingen på en tekst, der allerede er lagt op
 
 Åbn tap-tilstanden på sangen og tryk **Ret timing**. Klik på en linje for at høre den (sangen starter 3 sek. før),
 og tryk TAP/mellemrum, når linjen begynder – kun den linje får en ny tid. Finjustér med − og +, og flyt hele teksten med skyderen.
-Download den nye `.lrc` og erstat den gamle på GitHub.
+Tryk **Gem på GitHub** (eller download den nye `.lrc` og erstat den gamle).
 
 Siden kan også læse `.srt`-filer med samme navn, hvis der ikke er en `.lrc`.
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.5 -->
+<!-- KaSvanify v1.6 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -138,6 +138,12 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
 .nudge button:hover{background:rgba(255,255,255,.18)}
 .fixbox{background:rgba(255,255,255,.06);border-radius:14px;padding:14px 16px;margin-bottom:14px}
 .fixbox p{margin-bottom:10px;font-size:.92rem}
+.ghsteps{padding-left:18px;margin-bottom:12px}
+.ghsteps a{color:var(--a1)}
+.ghinput{width:100%;font:inherit;font-size:.9rem;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--fg);outline:none}
+.ghinput:focus{border-color:var(--a1)}
+.linkbtn{font-size:.8rem;color:var(--dim);text-decoration:underline;margin-top:4px}
+.pill:disabled{opacity:.6;cursor:default}
 .offset{display:flex;align-items:center;gap:12px;margin:14px 0 8px;font-size:.85rem;color:var(--dim)}
 .offset input{max-width:260px}
 
@@ -307,12 +313,26 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
         <button class="pill" id="fixPause">Pause</button>
         <span id="fixClock">0:00</span>
       </div>
+      <div class="fixbox" id="ghBox" hidden>
+        <p><b>GitHub-nøgle</b> – kun første gang på denne enhed.</p>
+        <ol class="hint ghsteps">
+          <li>Åbn <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">ny nøgle på GitHub</a> (fine-grained token).</li>
+          <li>Giv den et navn, fx KaSvanify, og vælg en udløbsdato.</li>
+          <li>Under <i>Repository access</i>: vælg <i>Only select repositories</i> og KaSvanify.</li>
+          <li>Under <i>Permissions</i>: giv <i>Contents</i> adgang til <i>Read and write</i>.</li>
+          <li>Tryk <i>Generate token</i>, kopiér nøglen og sæt den ind her.</li>
+        </ol>
+        <input id="ghToken" class="ghinput" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
+        <div class="btnrow"><button class="pill primary" id="ghTokenOk">Gem nøgle og gem teksten</button><button class="pill" id="ghTokenCancel">Annullér</button></div>
+      </div>
       <div class="offset">Flyt alle linjer <input type="range" id="tapOffset" min="-1" max="1" step="0.05" value="0"><span id="tapOffsetVal"></span></div>
       <div class="btnrow">
-        <button class="pill primary" id="tapTry">Afprøv i afspilleren</button>
+        <button class="pill primary" id="tapGh">Gem på GitHub</button>
+        <button class="pill" id="tapTry">Afprøv i afspilleren</button>
         <button class="pill" id="tapSave">Download .lrc</button>
         <button class="pill" id="tapRestart">Tap forfra</button>
       </div>
+      <button class="linkbtn" id="ghForget" hidden>Glem GitHub-nøglen på denne enhed</button>
     </section>
 
     <ol id="tapList"></ol>
@@ -857,6 +877,7 @@ async function loadBase(){
   $('#tapText').value = t.replace(/\r/g,'').trim();
 }
 function showTap(){
+  $('#ghForget').hidden = !ghGet();
   $('#tapEdit').hidden   = tap.state !== 'edit';
   $('#tapRun').hidden    = tap.state !== 'run';
   $('#tapFixSec').hidden = tap.state !== 'fix';
@@ -969,10 +990,56 @@ $('#tapTry').addEventListener('click', () => {
   doPlay();
   toast('Teksten er lagt ind. Husk at downloade .lrc-filen, ellers forsvinder den, når siden lukkes.', 5000);
 });
+function lrcText(s, res){
+  let out = `[ti:${s.title}]\n[ar:${s.artist}]\n[by:KaSvanify tap]\n`;
+  res.forEach(l => out += lrcTime(l.t) + l.text + '\n'); return out;
+}
+/* Gem direkte i repoet med en GitHub-nøgle, der kun ligger i denne browser */
+const GH_KEY = 'ksv-gh-token';
+const ghGet = () => { try { return localStorage.getItem(GH_KEY) || ''; } catch(e){ return ''; } };
+const ghSet = v => { try { if (v) localStorage.setItem(GH_KEY, v); else localStorage.removeItem(GH_KEY); } catch(e){} };
+function b64utf8(str){ const b = new TextEncoder().encode(str); let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(bin); }
+async function ghSave(){
+  const s = tap.song, repo = repoName();
+  if (!s) return;
+  if (!repo){ toast('Gem på GitHub virker kun, når siden ligger online. Brug Download .lrc.', 4000); return; }
+  const tok = ghGet();
+  if (!tok){ $('#ghBox').hidden = false; setTimeout(() => $('#ghToken').focus(), 50); return; }
+  const path = s.coll.mappe + '/' + s.base + '.lrc';
+  const url = 'https://api.github.com/repos/' + repo + '/contents/' + path.split('/').map(encodeURIComponent).join('/');
+  const H = {Authorization:'Bearer ' + tok, Accept:'application/vnd.github+json'};
+  const btn = $('#tapGh'); btn.disabled = true; btn.textContent = 'Gemmer …';
+  try {
+    const res = tapResult();
+    const body = {message:'Tekst: ' + s.base + ' (gemt fra KaSvanify)', content:b64utf8(lrcText(s, res))};
+    let r = await fetch(url, {headers:H, cache:'no-store'});
+    if (r.status === 401) throw new Error('nøgle');
+    if (r.ok){ const j = await r.json(); if (j && j.sha) body.sha = j.sha; }
+    r = await fetch(url, {method:'PUT', headers:{...H, 'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if (r.status === 401) throw new Error('nøgle');
+    if (r.status === 403 || r.status === 404) throw new Error('adgang');
+    if (!r.ok) throw new Error('fejl ' + r.status);
+    lyr.set(s.base, {lines:res});
+    if (!s.lrc) s.lrc = encPath(s.coll.mappe) + '/' + encodeURIComponent(s.base + '.lrc');
+    if (songs[cur] === s) renderLyrics(lyr.get(s.base));
+    $('#ghForget').hidden = false;
+    toast('Gemt på GitHub. Den nye tekst er synlig for alle om et minut eller to.', 4500);
+  } catch(e){
+    if (e.message === 'nøgle'){ ghSet(''); $('#ghForget').hidden = true; $('#ghBox').hidden = false; toast('GitHub afviste nøglen. Sæt en ny ind.', 4000); }
+    else if (e.message === 'adgang') toast('Nøglen må ikke skrive i KaSvanify. Tjek at Contents står til Read and write.', 5500);
+    else toast('Kunne ikke gemme på GitHub (' + e.message + '). Prøv igen, eller brug Download .lrc.', 5000);
+  } finally { btn.disabled = false; btn.textContent = 'Gem på GitHub'; }
+}
+$('#tapGh').addEventListener('click', ghSave);
+$('#ghTokenOk').addEventListener('click', () => {
+  const v = $('#ghToken').value.trim(); if (!v){ toast('Sæt nøglen ind først', 1600); return; }
+  ghSet(v); $('#ghToken').value = ''; $('#ghBox').hidden = true; ghSave();
+});
+$('#ghTokenCancel').addEventListener('click', () => { $('#ghBox').hidden = true; $('#ghToken').value = ''; });
+$('#ghForget').addEventListener('click', () => { ghSet(''); $('#ghForget').hidden = true; toast('Nøglen er glemt på denne enhed', 2000); });
 $('#tapSave').addEventListener('click', () => {
   const s = tap.song, res = tapResult();
-  let out = `[ti:${s.title}]\n[ar:${s.artist}]\n[by:KaSvanify tap]\n`;
-  res.forEach(l => out += lrcTime(l.t) + l.text + '\n');
+  const out = lrcText(s, res);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([out], {type:'text/plain;charset=utf-8'}));
   a.download = s.base + '.lrc'; document.body.appendChild(a); a.click();
@@ -1109,8 +1176,8 @@ function sExitAll(){
   sWords.forEach(w => {
     if (w.s === 'out') return; w.s = 'out';
     const a = Math.atan2(w.y - sCY, w.x - sCX);
-    if (sExit === 0){ w.vx = (Math.random()-.5)*5; w.vy = -3 - Math.random()*4; w.vr = (Math.random()-.5)*.2; }
-    else if (sExit === 1){ const sp = 9 + Math.random()*7; w.vx = Math.cos(a)*sp; w.vy = Math.sin(a)*sp; w.vr = (Math.random()-.5)*.4; }
+    if (sExit === 0){ w.vx = (Math.random()-.5)*4; w.vy = -2.5 - Math.random()*3; w.vr = (Math.random()-.5)*.2; }
+    else if (sExit === 1){ const sp = 6 + Math.random()*5; w.vx = Math.cos(a)*sp; w.vy = Math.sin(a)*sp; w.vr = (Math.random()-.5)*.4; }
     else { w.vx = 0; w.vy = 0; w.vr = .15; }
   });
 }
@@ -1120,7 +1187,7 @@ function sceneLine(text){
   if (!viewScene){ sWords = []; return; }
   sExitAll(); if (!text) return;
   const now = performance.now();
-  const nw = text.split(/\s+/).filter(Boolean).map((t,k) => ({t, s:'wait', d:k*60, born:now, x:0, y:0, vx:0, vy:0, rot:(Math.random()-.5)*1.2, vr:0, a:1, sc:1, w:0}));
+  const nw = text.split(/\s+/).filter(Boolean).map((t,k) => ({t, s:'wait', d:k*90, born:now, x:0, y:0, vx:0, vy:0, rot:(Math.random()-.5)*1.2, vr:0, a:1, sc:1, w:0}));
   sWords = sWords.concat(nw); sLayout(true);
   nw.forEach(w => {
     const r = Math.random(), side = r < .6 ? (w.tx < sCX ? 0 : 1) : (r < .8 ? 2 : 3);
@@ -1136,13 +1203,13 @@ function drawScene(now){
     const age = now - w.born - w.d;
     if (w.s === 'wait' && age > 0) w.s = 'in';
     if (w.s === 'in'){
-      w.vx += (w.tx - w.x)*.09; w.vy += (w.ty - w.y)*.09; w.vx *= .8; w.vy *= .8; w.rot *= .85; w.x += w.vx; w.y += w.vy;
-      if (age > 650){ const f = Math.min(1, (age-650)/250); w.x += (w.tx-w.x)*f; w.y += (w.ty-w.y)*f; w.rot *= 1-f; if (f >= 1){ w.s = 'set'; w.x = w.tx; w.y = w.ty; w.rot = 0; } }
+      w.vx += (w.tx - w.x)*.06; w.vy += (w.ty - w.y)*.06; w.vx *= .84; w.vy *= .84; w.rot *= .9; w.x += w.vx; w.y += w.vy;
+      if (age > 900){ const f = Math.min(1, (age-900)/300); w.x += (w.tx-w.x)*f; w.y += (w.ty-w.y)*f; w.rot *= 1-f; if (f >= 1){ w.s = 'set'; w.x = w.tx; w.y = w.ty; w.rot = 0; } }
     } else if (w.s === 'set'){ w.x = w.tx; w.y = w.ty; }
     else if (w.s === 'out'){
-      if (sExit === 0){ w.vy += .55; w.a -= .004; }
-      else if (sExit === 1){ w.vx *= .97; w.vy *= .97; w.a -= .03; }
-      else { w.vx += (sCX - w.x)*.02; w.vy += (sCY - w.y)*.02; w.vx *= .9; w.vy *= .9; w.sc *= .94; w.a -= .02; }
+      if (sExit === 0){ w.vy += .38; w.a -= .004; }
+      else if (sExit === 1){ w.vx *= .975; w.vy *= .975; w.a -= .02; }
+      else { w.vx += (sCX - w.x)*.014; w.vy += (sCY - w.y)*.014; w.vx *= .9; w.vy *= .9; w.sc *= .955; w.a -= .014; }
       w.x += w.vx; w.y += w.vy; w.rot += w.vr;
     }
   });
@@ -1151,7 +1218,7 @@ function drawScene(now){
   for (let i = 0; i < act.length; i++) for (let j = i+1; j < act.length; j++){
     let a = act[i], b = act[j]; if (a.row !== b.row) continue; if (a.tx > b.tx){ const t = a; a = b; b = t; }
     const min = (a.w + b.w)/2 + 6, dx = b.x - a.x;
-    if (dx < min && Math.abs(b.y - a.y) < sFont().px*1.1){ const p = (min - dx)*.18; a.vx -= p; b.vx += p; }
+    if (dx < min && Math.abs(b.y - a.y) < sFont().px*1.1){ const p = (min - dx)*.14; a.vx -= p; b.vx += p; }
   }
   sWords = sWords.filter(w => w.s !== 'out' || (w.a > 0 && w.y < sH + 150 && w.y > -150 && w.x > -400 && w.x < sW + 400));
   sg.font = sFont().f; sg.textAlign = 'center'; sg.textBaseline = 'middle';
@@ -1195,7 +1262,7 @@ function frame(ms){
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.5';
+const VERSION = '1.6';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
 requestAnimationFrame(frame);
 (async function init(){
