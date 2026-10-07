@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.1 -->
+<!-- KaSvanify v1.2 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -28,7 +28,10 @@ svg{display:block}
 #bgShade{position:fixed;inset:0;background:radial-gradient(ellipse at 30% 40%,rgba(0,0,0,.05),rgba(0,0,0,.6));z-index:-1}
 
 .app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto 1fr auto}
-header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;position:relative;z-index:31}
+.brand{display:flex;align-items:baseline;gap:8px}
+.vtag{font-size:.68rem;font-weight:600;color:rgba(255,255,255,.26);letter-spacing:.04em}
+body.at-home #openList{visibility:hidden}
 .logo{font-weight:800;font-size:1.4rem;letter-spacing:-.03em;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
 .logo .svan{color:var(--a1);transition:color .8s}
 .pill{display:inline-flex;gap:8px;align-items:center;padding:9px 16px;border-radius:999px;background:rgba(255,255,255,.09);font-size:.9rem;font-weight:600;transition:background .2s}
@@ -81,9 +84,9 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border:0;border-radiu
 .play svg{width:28px;height:28px}
 .vol{display:flex;align-items:center;gap:6px;width:150px;margin-left:6px}
 
-.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .3s;z-index:15}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .3s;z-index:32}
 .scrim.on{opacity:1;pointer-events:auto}
-.drawer,.tap{position:fixed;top:0;bottom:0;background:var(--panel);-webkit-backdrop-filter:blur(26px);backdrop-filter:blur(26px);z-index:20;display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.drawer,.tap{position:fixed;top:0;bottom:0;background:var(--panel);-webkit-backdrop-filter:blur(26px);backdrop-filter:blur(26px);z-index:33;display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .drawer{left:0;width:min(390px,92vw);transform:translateX(-103%);border-right:1px solid var(--line)}
 .tap{right:0;width:min(560px,100vw);transform:translateX(103%);border-left:1px solid var(--line)}
 .drawer.open,.tap.open{transform:none}
@@ -117,7 +120,14 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
 #tapList li.next{background:rgba(255,255,255,.1);color:#fff;font-weight:600}
 #tapList li .tm{font-variant-numeric:tabular-nums;color:var(--a1)}
 #tapList li .pz{opacity:.6;font-style:italic}
-.offset{display:flex;align-items:center;gap:12px;margin:8px 0}
+#tapList.fixmode li{grid-template-columns:4.8em 1fr auto;align-items:center}
+#tapList li.playing span:nth-child(2){color:var(--a1)}
+.nudge{display:flex;gap:4px}
+.nudge button{width:34px;height:28px;border-radius:8px;background:rgba(255,255,255,.08);font-weight:700;font-size:.95rem}
+.nudge button:hover{background:rgba(255,255,255,.18)}
+.fixbox{background:rgba(255,255,255,.06);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.fixbox p{margin-bottom:10px;font-size:.92rem}
+.offset{display:flex;align-items:center;gap:12px;margin:14px 0 8px;font-size:.85rem;color:var(--dim)}
 .offset input{max-width:260px}
 
 .start{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:rgba(6,6,12,.55);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);cursor:pointer;transition:opacity .4s}
@@ -137,6 +147,24 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
 .pin-card .btnrow{justify-content:center;margin-top:16px}
 .shake{animation:shake .35s}
 @keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.home{position:fixed;inset:0;z-index:30;overflow:auto;padding:80px 28px 48px;
+  background:radial-gradient(ellipse at 15% 0%,rgba(255,122,89,.20),transparent 55%),radial-gradient(ellipse at 95% 35%,rgba(124,140,255,.16),transparent 50%),var(--bg)}
+.home-inner{max-width:1180px;margin:0 auto}
+.home-title{font-size:clamp(1.7rem,4vw,2.7rem);font-weight:800;letter-spacing:-.03em}
+.home-sub{color:var(--dim);margin-top:4px}
+.home .resume{margin-top:18px}
+.home h2{font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:34px 0 14px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:24px 20px}
+.card{text-align:left;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card .art{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.02));box-shadow:0 10px 30px rgba(0,0,0,.45);transition:transform .25s}
+.card img{width:100%;height:100%;object-fit:cover;display:block}
+.card:hover .art{transform:translateY(-4px)}
+.playbadge{position:absolute;right:10px;bottom:10px;width:44px;height:44px;border-radius:50%;background:#fff;color:#0b0b10;display:grid;place-items:center;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.card:hover .playbadge,.card:focus-visible .playbadge,.card.current .playbadge{opacity:1;transform:none}
+.card b{font-size:.95rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card small{color:var(--dim);font-size:.8rem;margin-top:-5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card.current b{color:var(--a1)}
+@media (max-width:860px){ .home{padding:70px 16px 36px} .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 14px} }
 .toast{position:fixed;left:50%;bottom:120px;transform:translate(-50%,20px);background:rgba(20,20,30,.95);border:1px solid var(--line);padding:10px 18px;border-radius:999px;font-size:.9rem;opacity:0;transition:opacity .3s,transform .3s;z-index:50;pointer-events:none;max-width:90vw;text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
@@ -162,7 +190,7 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
 
 <div class="app">
   <header>
-    <div class="logo" id="logo">Ka<span class="svan">Svan</span>ify</div>
+    <div class="brand"><div class="logo" id="logo">Ka<span class="svan">Svan</span>ify</div><span class="vtag" id="vtag"></span></div>
     <button class="pill" id="openList" aria-label="Vis sange">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Sange
     </button>
@@ -220,7 +248,7 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
   <div class="panel-head"><h2>Sange</h2>
     <button class="icon-btn" data-close aria-label="Luk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
-  <div class="panel-body"><div id="songList"></div><div class="ver">KaSvanify v1.1</div></div>
+  <div class="panel-body"><div id="songList"></div><div class="ver" id="verLine"></div></div>
 </aside>
 
 <aside class="tap" id="tap" aria-label="Tap tekst">
@@ -229,13 +257,17 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
   </div>
   <div class="panel-body">
     <section id="tapEdit">
+      <div class="fixbox" id="tapFixRow" hidden>
+        <p>Sangen har allerede tekst med tider.</p>
+        <button class="pill primary" id="tapFix">Ret timing</button>
+      </div>
       <p class="hint">Indsæt teksten med én sunget linje per linje. Tomme linjer springes over. Skriv en linje med kun <b>-</b> der, hvor teksten skal forsvinde, fx i en solo.</p>
       <div class="btnrow">
         <button class="pill" id="tapLoadBase">Hent grundtekst</button>
         <button class="pill" id="tapLoadCur">Hent nuværende tekst</button>
       </div>
       <textarea id="tapText" spellcheck="false" placeholder="Første linje&#10;Anden linje&#10;-&#10;Linje efter solo"></textarea>
-      <div class="btnrow"><button class="pill primary" id="tapStart">Start – sangen spiller fra begyndelsen</button></div>
+      <div class="btnrow"><button class="pill" id="tapStart">Tap forfra – sangen spiller fra begyndelsen</button></div>
     </section>
 
     <section id="tapRun" hidden>
@@ -250,13 +282,20 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
       </div>
     </section>
 
-    <section id="tapDone" hidden>
-      <p class="hint">Alle linjer har fået en tid. Man trykker typisk lidt for sent, så alle tider er rykket 0,15 sek. frem. Justér, hvis teksten kommer for tidligt eller for sent.</p>
-      <div class="offset"><input type="range" id="tapOffset" min="-0.6" max="0.4" step="0.05" value="-0.15"><span id="tapOffsetVal"></span></div>
+    <section id="tapFixSec" hidden>
+      <p class="hint">Klik på en linje for at høre den – sangen starter 3 sek. før. Tryk <b>TAP</b> eller mellemrum, når linjen begynder, så får den en ny tid, og næste linje bliver valgt. Finjustér med − og + (0,1 sek.). Backspace fortryder. Linjen, der spiller lige nu, er farvet.</p>
+      <div class="tap-next"><small>Valgt linje</small><div id="fixText"></div></div>
+      <button class="tapbig" id="fixBtn">TAP<small>ny tid til valgt linje</small></button>
+      <div class="btnrow">
+        <button class="pill" id="fixUndo">↶ Fortryd</button>
+        <button class="pill" id="fixPause">Pause</button>
+        <span id="fixClock">0:00</span>
+      </div>
+      <div class="offset">Flyt alle linjer <input type="range" id="tapOffset" min="-1" max="1" step="0.05" value="0"><span id="tapOffsetVal"></span></div>
       <div class="btnrow">
         <button class="pill primary" id="tapTry">Afprøv i afspilleren</button>
         <button class="pill" id="tapSave">Download .lrc</button>
-        <button class="pill" id="tapRestart">Start forfra</button>
+        <button class="pill" id="tapRestart">Tap forfra</button>
       </div>
     </section>
 
@@ -280,6 +319,16 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
     <input id="pinInput" type="password" inputmode="numeric" maxlength="12" aria-label="Kode">
     <div class="btnrow"><button type="button" class="pill" id="pinCancel">Annullér</button><button type="submit" class="pill primary">OK</button></div>
   </form>
+</div>
+<div class="home" id="home" hidden>
+  <div class="home-inner">
+    <div class="home-title">Vælg en sang</div>
+    <div class="home-sub" id="homeSub"></div>
+    <button class="pill resume" id="homeResume" hidden>
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span></span>
+    </button>
+    <div id="homeGrid"></div>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 <audio id="audio" preload="metadata" playsinline></audio>
@@ -598,8 +647,9 @@ function doPlay(){
   if (p && p.then) p.then(() => { started = true; $('#start').classList.add('gone'); })
                      .catch(err => { if (err && err.name === 'NotAllowedError') $('#start').classList.remove('gone'); });
 }
-function togglePlay(){ if (audio.paused) doPlay(); else audio.pause(); }
+function togglePlay(){ if (cur < 0) return; if (audio.paused) doPlay(); else audio.pause(); }
 function step(dir){
+  if (cur < 0) return;
   if (dir < 0 && audio.currentTime > 3){ audio.currentTime = 0; return; }
   loadSong(cur + dir, started);
 }
@@ -648,7 +698,8 @@ async function share(){
 }
 window.addEventListener('hashchange', () => {
   const i = songs.findIndex(s => s.slug === location.hash.slice(1));
-  if (i >= 0 && i !== cur) loadSong(i, started);
+  if (i < 0) return;
+  hideHome(); if (i !== cur) loadSong(i, started);
 });
 
 /* ---------- Skuffe med sange ---------- */
@@ -673,17 +724,20 @@ $('#scrim').addEventListener('click', closePanels);
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closePanels));
 
 /* ---------- Tap-tilstand ---------- */
-const tap = { song:null, lines:[], times:[], old:[], state:'edit' };
+// Tilstande: 'edit' (tekst ind) → 'run' (tap hele sangen) → 'fix' (ret enkelte linjer, flyt alt, gem)
+const REACT = 0.15;   // man trykker typisk lidt for sent – trækkes fra hvert tap
+const tap = { song:null, lines:[], times:[], old:[], state:'edit', sel:-1, undo:[], fresh:false };
 function linesToText(ls){ return ls.map(l => l.text || '-').join('\n'); }
 async function openTap(){
   const s = songs[cur]; if (!s) return;
   openPanel('#tap'); $('#tapSong').textContent = s.title;
   $('#tapLoadBase').hidden = !s.coll.grundtekst;
-  const L = lyr.get(s.base); $('#tapLoadCur').hidden = !(L && L.lines.length);
+  const L = lyr.get(s.base), has = !!(L && L.lines.length);
+  $('#tapLoadCur').hidden = !has; $('#tapFixRow').hidden = !has;
   if (tap.song !== s){
-    tap.song = s; tap.lines = []; tap.times = []; tap.old = []; tap.state = 'edit';
+    tap.song = s; tap.lines = []; tap.times = []; tap.old = []; tap.undo = []; tap.sel = -1; tap.state = 'edit';
     $('#tapText').value = '';
-    if (L && L.lines.length) $('#tapText').value = linesToText(L.lines);
+    if (has) $('#tapText').value = linesToText(L.lines);
     else if (s.coll.grundtekst) loadBase();
   }
   showTap();
@@ -695,39 +749,53 @@ async function loadBase(){
   $('#tapText').value = t.replace(/\r/g,'').trim();
 }
 function showTap(){
-  $('#tapEdit').hidden = tap.state !== 'edit';
-  $('#tapRun').hidden  = tap.state !== 'run';
-  $('#tapDone').hidden = tap.state !== 'done';
-  $('#tapList').hidden = tap.state === 'edit';
+  $('#tapEdit').hidden   = tap.state !== 'edit';
+  $('#tapRun').hidden    = tap.state !== 'run';
+  $('#tapFixSec').hidden = tap.state !== 'fix';
+  $('#tapList').hidden   = tap.state === 'edit';
+  $('#tapList').classList.toggle('fixmode', tap.state === 'fix');
   renderTapList();
 }
+function fmtFine(t){ const cs = Math.round(Math.max(0,t)*100); return fmt(cs/100) + '.' + String(cs % 100).padStart(2,'0'); }
 function renderTapList(){
-  const ol = $('#tapList'); ol.innerHTML = ''; const n = tap.times.length;
+  const ol = $('#tapList'); ol.innerHTML = ''; const n = tap.times.length, fix = tap.state === 'fix';
   tap.lines.forEach((text,i) => {
     const li = document.createElement('li');
-    li.className = i < n ? 'done' : (i === n && tap.state === 'run' ? 'next' : '');
-    const tm = tap.times[i] != null ? fmt(tap.times[i]) + '.' + String(Math.floor((tap.times[i]%1)*10)) : '—';
+    if (fix) li.className = 'done' + (i === tap.sel ? ' next' : '');
+    else li.className = i < n ? 'done' : (i === n && tap.state === 'run' ? 'next' : '');
     li.innerHTML = '<span class="tm"></span><span></span>';
-    li.firstChild.textContent = tm;
-    if (text) li.lastChild.textContent = text; else { li.lastChild.textContent = '(pause)'; li.lastChild.className = 'pz'; }
-    li.addEventListener('click', () => tapFrom(i));
+    li.firstChild.textContent = tap.times[i] != null ? fmtFine(tap.times[i] + (fix ? tapOffset() : 0)) : '—';
+    if (text) li.children[1].textContent = text; else { li.children[1].textContent = '(pause)'; li.children[1].className = 'pz'; }
+    if (fix){
+      const nd = document.createElement('span'); nd.className = 'nudge';
+      nd.innerHTML = '<button type="button" aria-label="0,1 sek. tidligere">−</button><button type="button" aria-label="0,1 sek. senere">+</button>';
+      nd.children[0].addEventListener('click', e => { e.stopPropagation(); nudge(i, -0.1); });
+      nd.children[1].addEventListener('click', e => { e.stopPropagation(); nudge(i, +0.1); });
+      li.appendChild(nd);
+      li.addEventListener('click', () => fixSelect(i));
+    } else li.addEventListener('click', () => tapFrom(i));
     ol.appendChild(li);
   });
-  const nx = tap.lines[n];
-  $('#tapNextText').textContent = n >= tap.lines.length ? 'Færdig' : (nx ? nx : '(pause – teksten forsvinder)');
+  if (fix){
+    const t = tap.lines[tap.sel];
+    $('#fixText').textContent = tap.sel < 0 ? 'Klik på en linje i listen' : (t || '(pause – teksten forsvinder)');
+  } else {
+    const nx = tap.lines[n];
+    $('#tapNextText').textContent = n >= tap.lines.length ? 'Færdig' : (nx ? nx : '(pause – teksten forsvinder)');
+  }
   const el = ol.querySelector('li.next'); if (el) el.scrollIntoView({block:'center', behavior:'smooth'});
 }
+function flash(id){ const b = $(id); b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 90); }
 function tapStart(){
   const raw = $('#tapText').value.replace(/\r/g,'').split('\n').map(x => x.trim()).filter(x => x.length);
   if (!raw.length){ toast('Indsæt teksten først'); return; }
-  tap.lines = raw.map(x => x === '-' ? '' : x); tap.times = []; tap.old = []; tap.state = 'run';
-  showTap(); audio.currentTime = 0; doPlay();
+  tap.lines = raw.map(x => x === '-' ? '' : x); tap.times = []; tap.old = []; tap.undo = []; tap.sel = -1; tap.state = 'run'; tap.fresh = true;
+  setOffset(0); showTap(); audio.currentTime = 0; doPlay();
 }
 function tapHit(){
   if (tap.state !== 'run' || tap.times.length >= tap.lines.length) return;
-  tap.times.push(audio.currentTime);
-  const b = $('#tapBtn'); b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 90);
-  if (tap.times.length === tap.lines.length){ tap.state = 'done'; showTap(); } else renderTapList();
+  tap.times.push(Math.max(0, audio.currentTime - REACT)); flash('#tapBtn');
+  if (tap.times.length === tap.lines.length){ tap.state = 'fix'; tap.sel = -1; showTap(); } else renderTapList();
 }
 function tapUndo(){
   if (!tap.times.length) return;
@@ -740,24 +808,57 @@ function tapFrom(i){
   const ref = tap.old[i] != null ? tap.old[i] - 3 : (i > 0 ? tap.times[i-1] : 0);
   audio.currentTime = Math.max(0, ref); if (audio.paused) doPlay();
 }
-function tapOffset(){ return parseFloat($('#tapOffset').value); }
-function tapResult(){ const o = tapOffset(); return tap.lines.map((text,i) => ({t:Math.max(0, tap.times[i] + o), text})); }
+/* Ret timing */
+function startFix(){
+  const L = lyr.get(tap.song && tap.song.base); if (!L || !L.lines.length) return;
+  tap.lines = L.lines.map(l => l.text); tap.times = L.lines.map(l => l.t);
+  tap.undo = []; tap.sel = -1; tap.state = 'fix'; tap.fresh = false; setOffset(0); showTap();
+}
+function fixSelect(i){
+  tap.sel = i; renderTapList();
+  audio.currentTime = Math.max(0, tap.times[i] + tapOffset() - 3); if (audio.paused) doPlay();
+}
+function fixHit(){
+  if (tap.state !== 'fix' || tap.sel < 0) return;
+  const i = tap.sel; tap.undo.push({i, t:tap.times[i]});
+  tap.times[i] = Math.max(0, audio.currentTime - REACT - tapOffset()); flash('#fixBtn');
+  tap.sel = i + 1 < tap.lines.length ? i + 1 : -1; renderTapList();
+}
+function nudge(i, d){
+  tap.undo.push({i, t:tap.times[i]});
+  tap.times[i] = Math.max(0, Math.round((tap.times[i] + d)*100)/100); tap.sel = i; renderTapList();
+  audio.currentTime = Math.max(0, tap.times[i] + tapOffset() - 1.5); if (audio.paused) doPlay();
+}
+function fixUndo(){
+  const u = tap.undo.pop(); if (!u){ toast('Intet at fortryde', 1200); return; }
+  tap.times[u.i] = u.t; tap.sel = u.i; renderTapList();
+  audio.currentTime = Math.max(0, u.t + tapOffset() - 2);
+}
+function tapOffset(){ return parseFloat($('#tapOffset').value) || 0; }
+function setOffset(v){ $('#tapOffset').value = v; updOffsetLabel(); }
+function tapResult(){ const o = tapOffset(); return tap.lines.map((text,i) => ({t:Math.max(0, tap.times[i] + o), text})).sort((a,b) => a.t - b.t); }
 function lrcTime(t){ const cs = Math.round(Math.max(0,t)*100), m = Math.floor(cs/6000), r = cs - m*6000;
   return '[' + String(m).padStart(2,'0') + ':' + String(Math.floor(r/100)).padStart(2,'0') + '.' + String(r%100).padStart(2,'0') + ']'; }
 function updOffsetLabel(){ const o = tapOffset(); $('#tapOffsetVal').textContent = (o > 0 ? '+' : o < 0 ? '−' : '') + Math.abs(o).toFixed(2).replace('.',',') + ' sek'; }
-$('#tapOffset').addEventListener('input', updOffsetLabel); updOffsetLabel();
+$('#tapOffset').addEventListener('input', () => { updOffsetLabel(); if (tap.state === 'fix') renderTapList(); }); updOffsetLabel();
 $('#tapStart').addEventListener('click', tapStart);
+$('#tapFix').addEventListener('click', startFix);
 $('#tapLoadBase').addEventListener('click', loadBase);
 $('#tapLoadCur').addEventListener('click', () => { const L = lyr.get(tap.song && tap.song.base); if (L) $('#tapText').value = linesToText(L.lines); });
 $('#tapBtn').addEventListener('pointerdown', e => { e.preventDefault(); tapHit(); });
+$('#fixBtn').addEventListener('pointerdown', e => { e.preventDefault(); if (tap.sel < 0) toast('Klik først på en linje i listen', 1600); else fixHit(); });
 $('#tapUndo').addEventListener('click', tapUndo);
+$('#fixUndo').addEventListener('click', fixUndo);
 $('#tapBack').addEventListener('click', () => { audio.currentTime = Math.max(0, audio.currentTime - 3); });
 $('#tapPause').addEventListener('click', togglePlay);
-$('#tapRestart').addEventListener('click', () => { tap.state = 'edit'; tap.times = []; showTap(); });
+$('#fixPause').addEventListener('click', togglePlay);
+$('#tapRestart').addEventListener('click', () => { tap.state = 'edit'; tap.times = []; tap.undo = []; tap.sel = -1; showTap(); });
 $('#tapTry').addEventListener('click', () => {
   const s = tap.song, res = tapResult(); lyr.set(s.base, {lines:res});
   if (songs[cur] === s) renderLyrics(lyr.get(s.base));
-  closePanels(); audio.currentTime = Math.max(0, res[0].t - 3); doPlay();
+  closePanels();
+  audio.currentTime = tap.fresh ? Math.max(0, res[0].t - 3) : Math.max(0, audio.currentTime - 3);
+  doPlay();
   toast('Teksten er lagt ind. Husk at downloade .lrc-filen, ellers forsvinder den, når siden lukkes.', 5000);
 });
 $('#tapSave').addEventListener('click', () => {
@@ -770,7 +871,15 @@ $('#tapSave').addEventListener('click', () => {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   toast('Læg filen i ' + s.coll.mappe + ' ved siden af mp3-filen', 4000);
 });
-setInterval(() => { if (tap.state === 'run') $('#tapClock').textContent = fmt(audio.currentTime); }, 200);
+setInterval(() => {
+  if (tap.state === 'run') $('#tapClock').textContent = fmt(audio.currentTime);
+  if (tap.state === 'fix' && $('#tap').classList.contains('open')){
+    $('#fixClock').textContent = fmt(audio.currentTime);
+    const ct = audio.currentTime, o = tapOffset(); let best = -1, bt = -1;
+    tap.times.forEach((t,i) => { const tt = t + o; if (tt <= ct && tt >= bt){ bt = tt; best = i; } });
+    $('#tapList').querySelectorAll('li').forEach((li,i) => li.classList.toggle('playing', i === best));
+  }
+}, 150);
 
 /* ---------- Knapper og taster ---------- */
 $('#btnPlay').addEventListener('click', togglePlay);
@@ -797,10 +906,46 @@ $('#pinForm').addEventListener('submit', e => {
 });
 $('#pinCancel').addEventListener('click', () => { $('#pin').hidden = true; });
 const logo = $('#logo'); let lpTimer;
-logo.addEventListener('pointerdown', () => { clearTimeout(lpTimer); lpTimer = setTimeout(requestTap, 900); });
+let lpFired = false;
+logo.addEventListener('pointerdown', () => { lpFired = false; clearTimeout(lpTimer); lpTimer = setTimeout(() => { lpFired = true; requestTap(); }, 900); });
 ['pointerup','pointerleave','pointercancel'].forEach(ev => logo.addEventListener(ev, () => clearTimeout(lpTimer)));
 logo.addEventListener('contextmenu', e => e.preventDefault());
 $('#openList').addEventListener('click', () => openPanel('#drawer'));
+
+/* ---------- Forside ---------- */
+function buildHome(){
+  const box = $('#homeGrid'); box.innerHTML = '';
+  $('#homeSub').textContent = songs.length ? songs.length + (songs.length === 1 ? ' sang' : ' sange') : 'Ingen sange endnu – skriv dem ind i sange.js';
+  SAML.forEach(c => {
+    const ss = songs.filter(s => s.coll === c); if (!ss.length) return;
+    const h = document.createElement('h2'); h.textContent = c.navn; box.appendChild(h);
+    const grid = document.createElement('div'); grid.className = 'grid';
+    ss.forEach(s => {
+      const b = document.createElement('button'); b.className = 'card'; b.dataset.i = songs.indexOf(s);
+      b.innerHTML = '<div class="art"><img loading="lazy" alt=""><span class="playbadge"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span></div><b></b><small></small>';
+      const im = b.querySelector('img'); im.src = s.jpg; im.onerror = () => { im.onerror = null; im.src = s.png; };
+      b.querySelector('b').textContent = s.title; b.querySelector('small').textContent = s.artist;
+      b.addEventListener('click', () => { const i = +b.dataset.i; hideHome(); if (i === cur){ if (audio.paused) doPlay(); } else loadSong(i, true); });
+      grid.appendChild(b);
+    });
+    box.appendChild(grid);
+  });
+}
+function showHome(){
+  closePanels(); $('#pin').hidden = true;
+  $('#home').hidden = false; document.body.classList.add('at-home'); $('#start').classList.add('gone');
+  document.querySelectorAll('.card').forEach(c => c.classList.toggle('current', +c.dataset.i === cur));
+  const r = $('#homeResume');
+  if (cur >= 0){ r.hidden = false; r.querySelector('span').textContent = 'Tilbage til ' + songs[cur].title; } else r.hidden = true;
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  document.title = 'KaSvanify'; $('#home').scrollTop = 0;
+}
+function hideHome(){
+  $('#home').hidden = true; document.body.classList.remove('at-home');
+  if (cur >= 0){ const s = songs[cur]; if (location.hash.slice(1) !== s.slug) history.replaceState(null, '', '#' + s.slug); document.title = s.title + ' · KaSvanify'; }
+}
+$('#homeResume').addEventListener('click', () => { hideHome(); if (audio.paused) doPlay(); });
+logo.addEventListener('click', () => { if (!lpFired) showHome(); });
 $('#btnRing').addEventListener('click', () => {
   let v; do { v = Math.floor(Math.random()*VARIANTS.length); } while (v === variant && VARIANTS.length > 1);
   variant = v; needClear = true; toast('Ring: ' + VARIANTS[v].name, 1400);
@@ -808,16 +953,18 @@ $('#btnRing').addEventListener('click', () => {
 $('#start').addEventListener('click', doPlay);
 document.addEventListener('keydown', e => {
   const tag = (e.target.tagName || '').toLowerCase();
-  if (e.key === 'Escape'){ closePanels(); $('#pin').hidden = true; return; }
+  if (e.key === 'Escape'){ closePanels(); $('#pin').hidden = true; if (!$('#home').hidden && cur >= 0) hideHome(); return; }
   if (tag === 'textarea' || (tag === 'input' && e.target.type !== 'range')) return;
-  const tapRun = $('#tap').classList.contains('open') && tap.state === 'run';
+  const tapOpen = $('#tap').classList.contains('open');
+  const tapRun = tapOpen && tap.state === 'run', tapFixing = tapOpen && tap.state === 'fix';
   if (e.code === 'Space'){
     e.preventDefault();
     if (document.activeElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur();
-    if (tapRun) tapHit(); else togglePlay();
+    if (tapRun) tapHit(); else if (tapFixing && tap.sel >= 0) fixHit(); else if (cur >= 0) togglePlay();
     return;
   }
   if (tapRun && e.key === 'Backspace'){ e.preventDefault(); tapUndo(); return; }
+  if (tapFixing && e.key === 'Backspace'){ e.preventDefault(); fixUndo(); return; }
   if (tag === 'input') return;
   if (e.key === 'ArrowRight') audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
   if (e.key === 'ArrowLeft')  audio.currentTime = Math.max(0, audio.currentTime - 5);
@@ -842,14 +989,12 @@ function frame(ms){
 }
 
 /* ---------- Start ---------- */
-buildList();
-if (!songs.length){
-  $('#startTitle').textContent = 'Ingen sange endnu'; $('#startArtist').textContent = 'Skriv sangene ind i sange.js';
-} else {
-  const fromLink = songs.findIndex(s => s.slug === location.hash.slice(1));
-  if (fromLink >= 0) $('#startKicker').textContent = 'Delt med dig';
-  loadSong(fromLink >= 0 ? fromLink : 0, false);
-}
+const VERSION = '1.2';
+$('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
+buildList(); buildHome();
+const fromLink = songs.findIndex(s => s.slug === location.hash.slice(1));
+if (fromLink >= 0){ $('#startKicker').textContent = 'Delt med dig'; loadSong(fromLink, false); }
+else showHome();
 if (LOCAL_FILE) setTimeout(() => toast('Åbnet som fil: Visualisering og tekst virker først, når siden ligger online', 6000), 400);
 requestAnimationFrame(frame);
 })();

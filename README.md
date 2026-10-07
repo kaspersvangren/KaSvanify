@@ -39,6 +39,12 @@ Filnavnene skal passe præcist med det, der står i `sange.js` – også store o
 4. Tryk **Afprøv i afspilleren**. Er teksten lidt for tidlig eller sen, så justér forskydningen.
 5. Tryk **Download .lrc**, og læg filen i samme mappe som mp3-filen.
 
+### Ret timingen på en tekst, der allerede er lagt op
+
+Åbn tap-tilstanden på sangen og tryk **Ret timing**. Klik på en linje for at høre den (sangen starter 3 sek. før),
+og tryk TAP/mellemrum, når linjen begynder – kun den linje får en ny tid. Finjustér med − og +, og flyt hele teksten med skyderen.
+Download den nye `.lrc` og erstat den gamle på GitHub.
+
 Siden kan også læse `.srt`-filer med samme navn, hvis der ikke er en `.lrc`.
 
 ## Delelinks
