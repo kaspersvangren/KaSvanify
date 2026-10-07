@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.9 -->
+<!-- KaSvanify v1.10 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -112,6 +112,8 @@ input[type=range]::-moz-range-thumb{width:14px;height:14px;border:0;border-radiu
 .panel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px}
 .panel-head h2{font-size:1.1rem;font-weight:700}
 .panel-body{overflow:auto;padding:0 18px 24px;flex:1}
+.sticky{position:sticky;top:0;z-index:3;margin:0 -18px;padding:4px 18px 10px;background:rgb(16,16,24);box-shadow:0 10px 14px -10px rgba(0,0,0,.6)}
+@media (max-width:860px){ .sticky .hint{display:none} .sticky .tapbig{height:76px;font-size:1.6rem} .sticky .tap-next{min-height:0;padding:10px 14px;margin-bottom:8px} #tapNextText,#fixText{font-size:1.1rem} }
 .drawer h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);margin:18px 6px 8px}
 .row-song{display:grid;grid-template-columns:48px 1fr;gap:12px;align-items:center;width:100%;text-align:left;padding:7px 6px;border-radius:12px;transition:background .2s}
 .row-song:hover{background:rgba(255,255,255,.07)}
@@ -290,6 +292,10 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
   </div>
   <div class="panel-body">
     <section id="tapEdit">
+      <div class="fixbox" id="resumeBox" hidden>
+        <p id="resumeTxt"></p>
+        <div class="btnrow"><button class="pill primary" id="resumeGo">Fortsæt hvor du slap</button><button class="pill" id="resumeDrop">Glem tappene</button></div>
+      </div>
       <div class="fixbox" id="tapFixRow" hidden>
         <p>Sangen har allerede tekst med tider.</p>
         <button class="pill primary" id="tapFix">Ret timing</button>
@@ -303,7 +309,7 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
       <div class="btnrow"><button class="pill" id="tapStart">Tap forfra – sangen spiller fra begyndelsen</button></div>
     </section>
 
-    <section id="tapRun" hidden>
+    <section id="tapRun" class="sticky" hidden>
       <p class="hint">Tryk, når linjen <b>begynder</b>. Mellemrum = tap, Backspace = fortryd. Klik på en linje i listen for at tappe igen fra den.</p>
       <div class="tap-next"><small>Næste linje</small><div id="tapNextText"></div></div>
       <button class="tapbig" id="tapBtn">TAP<small>eller mellemrum</small></button>
@@ -315,7 +321,7 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
       </div>
     </section>
 
-    <section id="tapFixSec" hidden>
+    <section id="tapFixSec" class="sticky" hidden>
       <p class="hint">Klik på en linje for at høre den – sangen starter 3 sek. før. Tryk <b>TAP</b> eller mellemrum, når linjen begynder, så får den en ny tid, og næste linje bliver valgt. Finjustér med − og + (0,1 sek.). Backspace fortryder. Rettelserne vises i afspilleren med det samme, men skal gemmes til sidst.</p>
       <div class="tap-next"><small>Valgt linje</small><div id="fixText"></div></div>
       <button class="tapbig" id="fixBtn">TAP<small>ny tid til valgt linje</small></button>
@@ -883,6 +889,26 @@ document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click
 const REACT = 0.15;   // man trykker typisk lidt for sent – trækkes fra hvert tap
 const tap = { song:null, lines:[], times:[], old:[], state:'edit', sel:-1, undo:[], fresh:false, dirty:false };
 function linesToText(ls){ return ls.map(l => l.text || '-').join('\n'); }
+/* Kladde: tekst og tap gemmes løbende i browseren, så man kan fortsætte efter en afbrydelse */
+const draftKey = s => 'ksv-kladde:' + s.base;
+function draftGet(s){ try { return JSON.parse(localStorage.getItem(draftKey(s)) || 'null'); } catch(e){ return null; } }
+function draftClear(s){ try { localStorage.removeItem(draftKey(s)); } catch(e){} }
+let draftTimer;
+function draftSave(){
+  const s = tap.song; if (!s) return;
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => {
+    const d = {text:$('#tapText').value, state:tap.state, lines:tap.lines, times:tap.times, offset:tapOffset(), at:Date.now()};
+    if (d.state === 'fix' && !tap.dirty) return;   // urørt "ret timing" er ikke en kladde
+    try { localStorage.setItem(draftKey(s), JSON.stringify(d)); } catch(e){}
+  }, 300);
+}
+let pendingResume = null;
+function showResume(d){
+  pendingResume = d;
+  $('#resumeBox').hidden = !d;
+  if (d) $('#resumeTxt').textContent = 'Du blev afbrudt under tapningen og nåede ' + d.times.length + ' af ' + d.lines.length + ' linjer.';
+}
 async function openTap(){
   const s = songs[cur]; if (!s) return;
   openPanel('#tap'); $('#tapSong').textContent = s.title;
@@ -890,9 +916,19 @@ async function openTap(){
   const L = lyr.get(s.base), has = !!(L && L.lines.length);
   $('#tapLoadCur').hidden = !has; $('#tapFixRow').hidden = !has;
   if (tap.song !== s){
-    tap.song = s; tap.lines = []; tap.times = []; tap.old = []; tap.undo = []; tap.sel = -1; tap.state = 'edit';
+    tap.song = s; tap.lines = []; tap.times = []; tap.old = []; tap.undo = []; tap.sel = -1; tap.state = 'edit'; tap.dirty = false;
     $('#tapText').value = '';
-    if (has) $('#tapText').value = linesToText(L.lines);
+    const d = draftGet(s); showResume(null);
+    if (d){
+      $('#tapText').value = d.text || '';
+      if (d.state === 'fix' && d.lines && d.lines.length){
+        tap.lines = d.lines; tap.times = d.times; tap.state = 'fix'; tap.fresh = false; tap.dirty = true; setOffset(d.offset || 0);
+        showTap(); livePreview(); toast('Dine rettelser, der ikke var gemt, er hentet igen', 3000); return;
+      }
+      if (d.state === 'run' && d.times && d.times.length) showResume(d);
+      else toast('Din kladde er hentet igen', 2200);
+    }
+    else if (has) $('#tapText').value = linesToText(L.lines);
     else if (s.coll.grundtekst) loadBase();
   }
   showTap();
@@ -942,7 +978,15 @@ function renderTapList(){
   const el = ol.querySelector('li.next'); if (el) el.scrollIntoView({block:'center', behavior:'smooth'});
 }
 function flash(id){ const b = $(id); b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 90); }
+$('#tapText').addEventListener('input', draftSave);
+$('#resumeGo').addEventListener('click', () => {
+  const d = pendingResume; if (!d) return; showResume(null);
+  tap.lines = d.lines; tap.times = d.times.slice(); tap.old = []; tap.undo = []; tap.sel = -1; tap.state = 'run'; tap.fresh = true;
+  setOffset(0); showTap(); audio.currentTime = Math.max(0, (d.times[d.times.length-1] || 0) - 3); doPlay();
+});
+$('#resumeDrop').addEventListener('click', () => { showResume(null); tap.state = 'edit'; draftSave(); });
 function tapStart(){
+  showResume(null);
   const raw = $('#tapText').value.replace(/\r/g,'').split('\n').map(x => x.trim()).filter(x => x.length);
   if (!raw.length){ toast('Indsæt teksten først'); return; }
   tap.lines = raw.map(x => x === '-' ? '' : x); tap.times = []; tap.old = []; tap.undo = []; tap.sel = -1; tap.state = 'run'; tap.fresh = true;
@@ -952,15 +996,16 @@ function tapHit(){
   if (tap.state !== 'run' || tap.times.length >= tap.lines.length) return;
   tap.times.push(Math.max(0, audio.currentTime - REACT)); flash('#tapBtn');
   if (tap.times.length === tap.lines.length){ tap.state = 'fix'; tap.sel = -1; showTap(); changed(); } else renderTapList();
+  draftSave();
 }
 function tapUndo(){
   if (!tap.times.length) return;
-  const t = tap.times.pop(); tap.state = 'run'; showTap();
+  const t = tap.times.pop(); tap.state = 'run'; showTap(); draftSave();
   audio.currentTime = Math.max(0, t - 2.5);
 }
 function tapFrom(i){
   if (!tap.lines.length) return;
-  tap.old = tap.times.slice(); tap.times = tap.times.slice(0, i); tap.state = 'run'; showTap();
+  tap.old = tap.times.slice(); tap.times = tap.times.slice(0, i); tap.state = 'run'; showTap(); draftSave();
   const ref = tap.old[i] != null ? tap.old[i] - 3 : (i > 0 ? tap.times[i-1] : 0);
   audio.currentTime = Math.max(0, ref); if (audio.paused) doPlay();
 }
@@ -971,7 +1016,7 @@ function livePreview(){
   const s = tap.song; lyr.set(s.base, {lines:tapResult()});
   if (songs[cur] === s) renderLyrics(lyr.get(s.base));
 }
-function changed(){ tap.dirty = true; livePreview(); }
+function changed(){ tap.dirty = true; livePreview(); draftSave(); }
 function startFix(){
   const L = lyr.get(tap.song && tap.song.base); if (!L || !L.lines.length) return;
   tap.lines = L.lines.map(l => l.text); tap.times = L.lines.map(l => l.t);
@@ -1054,7 +1099,7 @@ async function ghSave(){
     lyr.set(s.base, {lines:res});
     if (!s.lrc) s.lrc = encPath(s.coll.mappe) + '/' + encodeURIComponent(s.base + '.lrc');
     if (songs[cur] === s) renderLyrics(lyr.get(s.base));
-    $('#ghForget').hidden = false; tap.dirty = false;
+    $('#ghForget').hidden = false; tap.dirty = false; clearTimeout(draftTimer); draftClear(s);
     toast('Gemt på GitHub. Den nye tekst er synlig for alle om et minut eller to.', 4500);
   } catch(e){
     if (e.message === 'nøgle'){ ghSet(''); $('#ghForget').hidden = true; $('#ghBox').hidden = false; toast('GitHub afviste nøglen. Sæt en ny ind.', 4000); }
@@ -1471,7 +1516,7 @@ function frame(ms){
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.9';
+const VERSION = '1.10';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
 requestAnimationFrame(frame);
 (async function init(){

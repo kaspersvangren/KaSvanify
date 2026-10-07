@@ -52,6 +52,9 @@ I `sange.js` kan du bestemme rækkefølgen og give samlingerne pænere navne. Sa
 og tryk TAP/mellemrum, når linjen begynder – kun den linje får en ny tid. Finjustér med − og +, og flyt hele teksten med skyderen. Rettelserne vises med det samme i afspilleren.
 Tryk **Gem på GitHub** (eller download den nye `.lrc` og erstat den gamle).
 
+Tekst, tap og rettelser gemmes løbende som kladde i browseren. Bliver du afbrudt, henter tap-tilstanden kladden igen,
+og under tapningen kan du fortsætte fra den linje, du nåede. Kladden slettes, når teksten er gemt på GitHub.
+
 Siden kan også læse `.srt`-filer med samme navn, hvis der ikke er en `.lrc`.
 
 ## Tekstvisning
