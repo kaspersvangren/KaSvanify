@@ -49,6 +49,11 @@ Download den nye `.lrc` og erstat den gamle på GitHub.
 
 Siden kan også læse `.srt`-filer med samme navn, hvis der ikke er en `.lrc`.
 
+## Tekstvisning
+
+Knappen med T'et nederst til højre skifter mellem rullende tekst og scenevisning, hvor kun den aktuelle linje vises,
+og ordene flyver ind og ud. Siden husker valget i browseren.
+
 ## Delelinks
 
 Knappen med kæden kopierer et link som `…/kasvanify/#homies-er-her`, der åbner siden med den sang valgt.

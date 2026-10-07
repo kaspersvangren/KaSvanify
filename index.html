@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.4 -->
+<!-- KaSvanify v1.5 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -42,7 +42,14 @@ body.at-home #openList{visibility:hidden}
 .icon-btn:hover{background:rgba(255,255,255,.09);color:#fff}
 .icon-btn svg{width:22px;height:22px}
 
-main{display:grid;grid-template-columns:1fr 1fr;gap:28px;min-height:0;padding:0 28px}
+main{display:grid;grid-template-columns:1fr 1fr;gap:28px;min-height:0;padding:0 28px;position:relative}
+#sceneCv{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none;z-index:2}
+body.scene #sceneCv{display:block}
+body.scene main{grid-template-columns:1fr}
+body.scene .lyrics{display:none}
+body.scene .stage{opacity:.5;transition:opacity .6s}
+body.scene #btnView{color:var(--a1)}
+@media (max-width:860px){ body.scene main{grid-template-rows:1fr} body.scene .stage{width:min(84vw,48vh);width:min(84vw,48dvh)} }
 .left{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;gap:18px}
 .stage{position:relative;width:min(100%,calc(100vh - 290px),580px);width:min(100%,calc(100dvh - 290px),580px);aspect-ratio:1;--pulse:1}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%}
@@ -209,6 +216,7 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
       </div>
       <div class="np"><div id="npTitle"></div><div id="npArtist"></div></div>
     </section>
+    <canvas id="sceneCv" aria-hidden="true"></canvas>
     <section class="lyrics" id="lyrics">
       <div class="lyrics-inner" id="lyricsInner"></div>
       <div class="nolyrics" id="noLyrics" hidden>
@@ -235,6 +243,9 @@ textarea{width:100%;min-height:42vh;background:rgba(0,0,0,.35);color:var(--fg);b
         <button class="icon-btn" id="btnNext" aria-label="Næste"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM4 18l10.5-6L4 6z"/></svg></button>
       </div>
       <div class="side r">
+        <button class="icon-btn" id="btnView" title="Skift tekstvisning: rullende eller scene" aria-label="Skift tekstvisning">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg>
+        </button>
         <button class="icon-btn" id="btnRing" title="Skift visualisering" aria-label="Skift visualisering">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
         </button>
@@ -686,6 +697,7 @@ function renderLyrics(L, loading){
 function findActive(t){ let i = -1; for (let k = 0; k < lines.length; k++){ if (lines[k].t <= t) i = k; else break; } return i; }
 function setActive(i, instant){
   if (i === active && !instant) return; active = i;
+  sceneLine(i >= 0 && lines[i] ? lines[i].text : '');
   const ref = Math.max(0, i);
   lineEls.forEach((el,k) => {
     const isA = k === i; el.classList.toggle('active', isA);
@@ -729,7 +741,8 @@ function loadSong(i, play){
   document.title = s.title + ' · KaSvanify';
   if (location.hash.slice(1) !== s.slug) history.replaceState(null, '', '#' + s.slug);
   variant = hashStr(s.base) % VARIANTS.length; needClear = true;
-  $('#lyrics').dataset.ws = hashStr(s.base + '·ord') % 3;   // ordenes indgang: 0 stiger op, 1 falder ned, 2 zoomer ind
+  $('#lyrics').dataset.ws = hashStr(s.base + '·ord') % 3;
+  sExit = hashStr(s.base + '·ud') % 3; sceneReset();   // scenens udgang: 0 falder ned, 1 eksploderer, 2 suges ind   // ordenes indgang: 0 stiger op, 1 falder ned, 2 zoomer ind
   document.querySelectorAll('.row-song').forEach(b => b.classList.toggle('current', +b.dataset.i === cur));
   updateMediaSession(s);
   loadLyrics(s);
@@ -1065,6 +1078,103 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft')  audio.currentTime = Math.max(0, audio.currentTime - 5);
 });
 
+/* ---------- Scenevisning: kun den aktuelle linje, ordene flyver ind og ud ---------- */
+const scv = $('#sceneCv'), sg = scv.getContext('2d');
+let sW = 0, sH = 0, sCX = 0, sCY = 0, sWords = [], sExit = 0, sCurText = null, viewScene = false;
+function sResize(){
+  const d = Math.min(2, window.devicePixelRatio || 1), r = scv.getBoundingClientRect();
+  sW = r.width; sH = r.height; scv.width = Math.max(1, Math.round(sW*d)); scv.height = Math.max(1, Math.round(sH*d));
+  sg.setTransform(d,0,0,d,0,0); sLayout(false);
+}
+new ResizeObserver(sResize).observe(scv);
+function sFont(){ const px = Math.round(clamp(sW*.045, 24, 60)); return {px, f:'700 ' + px + 'px Sora, system-ui, sans-serif'}; }
+function sCenter(){   // ordene samles om coverets midte
+  const sr = stage.getBoundingClientRect(), cr = scv.getBoundingClientRect();
+  sCX = sr.width ? sr.left + sr.width/2 - cr.left : sW/2; sCY = sr.height ? sr.top + sr.height/2 - cr.top : sH/2;
+}
+function sLayout(fresh){
+  sCenter();
+  const live = sWords.filter(w => w.s !== 'out'); if (!live.length || !sW) return;
+  const {px, f} = sFont(); sg.font = f;
+  const gap = px*.32, maxW = Math.min(sW*.84, sW - 24), lh = px*1.3, rows = [[]]; let rw = 0;
+  live.forEach(w => { w.w = sg.measureText(w.t).width; if (rw + w.w > maxW && rows[rows.length-1].length){ rows.push([]); rw = 0; } rows[rows.length-1].push(w); rw += w.w + gap; });
+  const top = sCY - rows.length*lh/2 + lh/2;
+  rows.forEach((r,ri) => {
+    const tot = r.reduce((a,o) => a + o.w, 0) + gap*(r.length-1); let x = clamp(sCX - tot/2, 12, Math.max(12, sW - 12 - tot));
+    r.forEach(w => { w.tx = x + w.w/2; w.ty = top + ri*lh; w.row = ri; x += w.w + gap; if (!fresh && w.s === 'set'){ w.x = w.tx; w.y = w.ty; } });
+  });
+}
+function sExitAll(){
+  sWords = sWords.filter(w => w.s !== 'wait');
+  sWords.forEach(w => {
+    if (w.s === 'out') return; w.s = 'out';
+    const a = Math.atan2(w.y - sCY, w.x - sCX);
+    if (sExit === 0){ w.vx = (Math.random()-.5)*5; w.vy = -3 - Math.random()*4; w.vr = (Math.random()-.5)*.2; }
+    else if (sExit === 1){ const sp = 9 + Math.random()*7; w.vx = Math.cos(a)*sp; w.vy = Math.sin(a)*sp; w.vr = (Math.random()-.5)*.4; }
+    else { w.vx = 0; w.vy = 0; w.vr = .15; }
+  });
+}
+function sceneLine(text){
+  text = text || '';
+  if (text === sCurText) return; sCurText = text;
+  if (!viewScene){ sWords = []; return; }
+  sExitAll(); if (!text) return;
+  const now = performance.now();
+  const nw = text.split(/\s+/).filter(Boolean).map((t,k) => ({t, s:'wait', d:k*60, born:now, x:0, y:0, vx:0, vy:0, rot:(Math.random()-.5)*1.2, vr:0, a:1, sc:1, w:0}));
+  sWords = sWords.concat(nw); sLayout(true);
+  nw.forEach(w => {
+    const r = Math.random(), side = r < .6 ? (w.tx < sCX ? 0 : 1) : (r < .8 ? 2 : 3);
+    w.x = side === 0 ? -w.w : side === 1 ? sW + w.w : w.tx + (Math.random()-.5)*120;
+    w.y = side === 2 ? -40 : side === 3 ? sH + 40 : w.ty + (Math.random()-.5)*120;
+  });
+}
+function sceneReset(){ sWords = []; sCurText = null; }
+function drawScene(now){
+  if (!viewScene || !sW) return;
+  sg.clearRect(0, 0, sW, sH);
+  sWords.forEach(w => {
+    const age = now - w.born - w.d;
+    if (w.s === 'wait' && age > 0) w.s = 'in';
+    if (w.s === 'in'){
+      w.vx += (w.tx - w.x)*.09; w.vy += (w.ty - w.y)*.09; w.vx *= .8; w.vy *= .8; w.rot *= .85; w.x += w.vx; w.y += w.vy;
+      if (age > 650){ const f = Math.min(1, (age-650)/250); w.x += (w.tx-w.x)*f; w.y += (w.ty-w.y)*f; w.rot *= 1-f; if (f >= 1){ w.s = 'set'; w.x = w.tx; w.y = w.ty; w.rot = 0; } }
+    } else if (w.s === 'set'){ w.x = w.tx; w.y = w.ty; }
+    else if (w.s === 'out'){
+      if (sExit === 0){ w.vy += .55; w.a -= .004; }
+      else if (sExit === 1){ w.vx *= .97; w.vy *= .97; w.a -= .03; }
+      else { w.vx += (sCX - w.x)*.02; w.vy += (sCY - w.y)*.02; w.vx *= .9; w.vy *= .9; w.sc *= .94; w.a -= .02; }
+      w.x += w.vx; w.y += w.vy; w.rot += w.vr;
+    }
+  });
+  // sammenstød undervejs – ordene skubbes altid i den retning, de skal stå
+  const act = sWords.filter(w => w.s === 'in');
+  for (let i = 0; i < act.length; i++) for (let j = i+1; j < act.length; j++){
+    let a = act[i], b = act[j]; if (a.row !== b.row) continue; if (a.tx > b.tx){ const t = a; a = b; b = t; }
+    const min = (a.w + b.w)/2 + 6, dx = b.x - a.x;
+    if (dx < min && Math.abs(b.y - a.y) < sFont().px*1.1){ const p = (min - dx)*.18; a.vx -= p; b.vx += p; }
+  }
+  sWords = sWords.filter(w => w.s !== 'out' || (w.a > 0 && w.y < sH + 150 && w.y > -150 && w.x > -400 && w.x < sW + 400));
+  sg.font = sFont().f; sg.textAlign = 'center'; sg.textBaseline = 'middle';
+  const glow = rgba(col1, .75), pulse = 1 + bassP*.05;
+  sWords.forEach(w => {
+    if (w.s === 'wait') return;
+    const live = w.s !== 'out', sc = w.sc*(live ? pulse : 1);
+    sg.save(); sg.globalAlpha = clamp(w.a, 0, 1); sg.translate(w.x, w.y); sg.rotate(w.rot); sg.scale(sc, sc);
+    sg.shadowColor = 'rgba(0,0,0,.75)'; sg.shadowBlur = 14; sg.fillStyle = live ? '#fff' : 'rgba(255,255,255,.55)'; sg.fillText(w.t, 0, 0);
+    if (live){ sg.shadowColor = glow; sg.shadowBlur = 12 + bassP*22; sg.fillText(w.t, 0, 0); }
+    sg.restore();
+  });
+}
+function setView(scene, quiet){
+  viewScene = scene; document.body.classList.toggle('scene', scene);
+  try { localStorage.setItem('ksv-view', scene ? 'scene' : 'rul'); } catch(e){}
+  if (scene){ sResize(); sceneReset(); sceneLine(active >= 0 && lines[active] ? lines[active].text : ''); }
+  else { sg.clearRect(0, 0, sW, sH); requestAnimationFrame(() => centerOn(Math.max(0, active), true)); }
+  if (!quiet) toast(scene ? 'Tekst: scene' : 'Tekst: rullende', 1300);
+}
+$('#btnView').addEventListener('click', () => setView(!viewScene));
+try { if (localStorage.getItem('ksv-view') === 'scene') setView(true, true); } catch(e){}
+
 /* ---------- Hovedløkke ---------- */
 function frame(ms){
   requestAnimationFrame(frame);
@@ -1081,10 +1191,11 @@ function frame(ms){
   const ct = audio.currentTime || 0;
   if (!seeking && audio.duration){ seek.value = Math.round(ct/audio.duration*1000); seek.style.setProperty('--v', (ct/audio.duration*100) + '%'); $('#tCur').textContent = fmt(ct); }
   updateLyrics(ct);
+  drawScene(ms);
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.4';
+const VERSION = '1.5';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
 requestAnimationFrame(frame);
 (async function init(){
