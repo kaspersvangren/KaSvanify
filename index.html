@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.6 -->
+<!-- KaSvanify v1.7 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -61,7 +61,8 @@ body.scene #btnView{color:var(--a1)}
 .lyrics{position:relative;min-height:0;overflow:hidden;--pl:1;
   -webkit-mask-image:linear-gradient(transparent,#000 16%,#000 80%,transparent);
           mask-image:linear-gradient(transparent,#000 16%,#000 80%,transparent)}
-.lyrics-inner{position:absolute;left:0;right:0;top:0;padding:0 9% 0 10px;transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.lyrics-inner{position:absolute;left:0;right:0;top:0;padding:0 9% 0 10px;transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .9s ease}
+.lyrics.off .lyrics-inner{opacity:0}
 .line{font-size:clamp(1.25rem,2.3vw,2.1rem);font-weight:700;line-height:1.22;margin:.5em 0;opacity:.3;transform-origin:left center;
   transition:opacity .5s,filter .5s,transform .5s;cursor:pointer;color:rgba(255,255,255,.9)}
 .line:not(.active):hover{opacity:.7!important;filter:none!important}
@@ -734,9 +735,13 @@ function centerOn(k, instant){
   else inner.style.transform = `translateY(${y}px)`;
 }
 window.addEventListener('resize', () => centerOn(Math.max(0, active), true));
+const LEAD_IN = 3, LEAD_OUT = 1.5;   // teksten kommer 3 sek. før første linje og går 1,5 sek. før sangen slutter
 function updateLyrics(t){
   if (!lines.length) return;
   const i = findActive(t); if (i !== active) setActive(i);
+  const dur = audio.duration, ending = isFinite(dur) && dur > LEAD_OUT*2 && t > dur - LEAD_OUT;
+  $('#lyrics').classList.toggle('off', ending || t < lines[0].t - LEAD_IN);
+  sceneLine(ending ? '' : (i >= 0 && lines[i] ? lines[i].text : ''));
 }
 
 /* ---------- Afspilning ---------- */
@@ -1262,7 +1267,7 @@ function frame(ms){
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.6';
+const VERSION = '1.7';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
 requestAnimationFrame(frame);
 (async function init(){
