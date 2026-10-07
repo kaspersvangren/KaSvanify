@@ -13,7 +13,7 @@
 // Kode til tap-tilstanden (hold på KaSvanify-logoet i et sekund for at åbne den).
 // Skift den til din egen. Sæt den til "" for at slå koden fra.
 // Bemærk: Filen er offentlig, så koden holder kun nysgerrige ude – ikke nogen, der leder.
-const TAP_KODE = "1234";
+const TAP_KODE = "5600";
 
 const SAMLINGER = [
   {
