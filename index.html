@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.11 -->
+<!-- KaSvanify v1.12 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -691,8 +691,100 @@ const VARIANTS = [
           g.beginPath(); g.arc(cx+Math.cos(a)*r, cy+Math.sin(a)*r, (1.3 + v*5.5)*u, 0, Math.PI*2); g.fill();
         }
       }
+  }},
+  { name:'Blokke', draw(P){   // få, brede søjler af LED-blokke med faldende toppe
+      const {cx,cy,R,maxL,t,u} = P, n = 14, seg = 9, step = Math.PI/n;
+      g.clearRect(0,0,P.w,P.h); g.globalCompositeOperation = 'lighter';
+      if (!vz.peaks || vz.peaks.length !== n) vz.peaks = new Float32Array(n);
+      const segL = maxL*.9/seg, bw = 2*Math.PI*(R + maxL*.45)/(2*n)*.62;
+      for (let i = 0; i < n; i++){
+        let v = 0; const b0 = Math.floor(i*NB*.8/n), b1 = Math.floor((i+1)*NB*.8/n);
+        for (let k = b0; k < b1; k++) v = Math.max(v, bands[k]);
+        v = Math.max(v, idle(i,t)*1.5);
+        const lit = Math.round(v*seg); vz.peaks[i] = Math.max(vz.peaks[i] - .012, v);
+        for (const side of [1,-1]){
+          const a = -Math.PI/2 + side*(i+.5)*step;
+          g.save(); g.translate(cx, cy); g.rotate(a + Math.PI/2);
+          for (let sgi = 0; sgi < lit; sgi++){
+            g.fillStyle = rgba(mix(col1, col2, sgi/seg), .9);
+            const y = -(R + 4*u + sgi*segL);
+            g.fillRect(-bw/2*(.6 + .4*(sgi+1)/seg), y - segL*.78, bw*(.6 + .4*(sgi+1)/seg), segL*.78);
+          }
+          const py = -(R + 4*u + vz.peaks[i]*seg*segL);
+          g.fillStyle = rgba(col2, .95); g.fillRect(-bw/2, py - 3*u, bw, 3*u);
+          g.restore();
+        }
+      }
+  }},
+  { name:'Flammer', draw(P){   // flammetunger, der slikker ud fra coveret
+      const {cx,cy,R,maxL,t,u} = P, n = 120;
+      g.clearRect(0,0,P.w,P.h); g.globalCompositeOperation = 'lighter';
+      const hot = [255,236,170], layers = [[1, col1, .38], [.7, mix(col1, hot, .5), .45], [.42, hot, .55]];
+      layers.forEach(([sc, c, al], li) => {
+        const pts = [];
+        for (let k = 0; k < n; k++){
+          const a = k/n*Math.PI*2, idx = k < n/2 ? k : n-1-k;
+          const v = Math.max(bands[Math.floor(idx/(n/2)*NB*.75)], .06);
+          const flick = .55 + .45*Math.sin(a*9 + t*11 + li)*Math.sin(a*4 - t*6.5) + .25*Math.sin(a*23 - t*17);
+          const tongue = Math.pow(Math.max(0, Math.sin(a*12 + t*2.2 + li*.7)), 3);
+          const r = R + maxL*sc*(.12 + v*(.55 + .45*flick)*(.55 + .6*tongue));
+          pts.push([cx + Math.cos(a)*r, cy + Math.sin(a)*r]);
+        }
+        const gr = g.createRadialGradient(cx, cy, R*.95, cx, cy, R + maxL*sc);
+        gr.addColorStop(0, rgba(c, al)); gr.addColorStop(1, rgba(c, 0));
+        closedCurve(pts); g.fillStyle = gr; g.fill();
+      });
+  }},
+  { name:'Hyperspace', draw(P){   // stjerner, der suser ud fra coveret – hurtigere jo mere energi
+      const {cx,cy,R,maxL,u,w,h} = P;
+      g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0,0,w,h);
+      g.globalCompositeOperation = 'lighter';
+      let e = 0; for (let i = 0; i < NB*.7; i++) e += bands[i]; e /= NB*.7;
+      if (!vz.stars){ vz.stars = []; for (let i = 0; i < 260; i++) vz.stars.push({a:Math.random()*Math.PI*2, d:Math.random(), s:.4 + Math.random()*.8}); }
+      const maxD = Math.hypot(w, h)/2, spd = .004 + e*.05 + bassP*.03;
+      vz.stars.forEach(st => {
+        const d0 = R*.85 + st.d*(maxD - R*.85);
+        st.d += spd*st.s*(.3 + st.d*1.6);
+        if (st.d > 1){ st.d = 0; st.a = Math.random()*Math.PI*2; st.s = .4 + Math.random()*.8; }
+        const d1 = R*.85 + st.d*(maxD - R*.85), c = st.s > .9 ? col2 : col1;
+        g.strokeStyle = rgba(mix(c, [255,255,255], .5), .25 + .75*st.d); g.lineWidth = (.6 + st.d*2.4)*u;
+        g.beginPath(); g.moveTo(cx + Math.cos(st.a)*d0, cy + Math.sin(st.a)*d0); g.lineTo(cx + Math.cos(st.a)*d1, cy + Math.sin(st.a)*d1); g.stroke();
+      });
+  }},
+  { name:'Chokbølger', draw(P){   // en bølge sendes ud for hvert bastrommeslag
+      const {cx,cy,R,maxL,t,u} = P;
+      g.clearRect(0,0,P.w,P.h); g.globalCompositeOperation = 'lighter';
+      if (!vz.waves) vz.waves = [];
+      const now = performance.now()/1000;
+      if (bassP > .25 && bassP - (vz.lastB || 0) > .08 && now - (vz.lastWave || 0) > .16){ vz.waves.push({t0:now, p:bassP}); vz.lastWave = now; }
+      vz.lastB = bassP;
+      vz.waves = vz.waves.filter(wv => now - wv.t0 < 1.4);
+      vz.waves.forEach(wv => {
+        const f = (now - wv.t0)/1.4, r = R + 4*u + eo3(f)*maxL*1.05;
+        g.strokeStyle = rgba(mix(col1, col2, f), (1 - f)*(.5 + wv.p*.5)); g.lineWidth = (2 + wv.p*7)*(1 - f)*u + .5;
+        g.beginPath(); g.arc(cx, cy, r, 0, Math.PI*2); g.stroke();
+      });
+      const pts = [], n = 120;
+      for (let k = 0; k < n; k++){ const a = k/n*Math.PI*2, idx = k < n/2 ? k : n-1-k, v = Math.max(bands[30 + Math.floor(idx/(n/2)*60)], idle(k,t)); const r = R + 5*u + v*maxL*.18; pts.push([cx + Math.cos(a)*r, cy + Math.sin(a)*r]); }
+      closedCurve(pts); g.strokeStyle = rgba(col2, .85); g.lineWidth = 1.8*u; g.stroke();
+  }},
+  { name:'Galakse', draw(P){   // spiralarme af lysprikker, der drejer og vokser med musikken
+      const {cx,cy,R,maxL,t,u,w,h} = P;
+      g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(0,0,w,h);
+      g.globalCompositeOperation = 'lighter';
+      if (!vz.gal){ vz.gal = []; for (let i = 0; i < 340; i++) vz.gal.push({arm:i % 3, r:Math.pow(Math.random(), .8), j:(Math.random()-.5)*.5, z:Math.random()}); }
+      let mids = 0; for (let i = 20; i < 80; i++) mids += bands[i]; mids /= 60;
+      vz.gal.forEach(p => {
+        const v = bands[Math.min(NB-1, Math.floor(p.r*NB*.8))];
+        const a = p.arm*Math.PI*2/3 + p.r*3.4 + p.j + t*(.35 - p.r*.15);
+        const rr = R + 6*u + p.r*maxL*(.85 + mids*.35);
+        const x = cx + Math.cos(a)*rr, y = cy + Math.sin(a)*rr;
+        g.fillStyle = rgba(mix(col1, col2, p.r), .35 + v*.65);
+        g.beginPath(); g.arc(x, y, (.8 + p.z*1.6 + v*3.5)*u, 0, Math.PI*2); g.fill();
+      });
   }}
 ];
+const vz = {};   // tilstand for de ringe, der husker noget mellem billederne
 
 /* ---------- Tekst ---------- */
 function parseLRC(txt){
@@ -804,7 +896,7 @@ function loadSong(i, play){
     document.title = s.title + ' · KaSvanify';
     if (location.hash.slice(1) !== s.slug) history.replaceState(null, '', '#' + s.slug);
   }
-  variant = hashStr(s.base) % VARIANTS.length; needClear = true;
+  variant = hashStr(s.base) % VARIANTS.length; needClear = true; for (const k in vz) delete vz[k];
   $('#lyrics').dataset.ws = hashStr(s.base + '·ord') % 3;
   sExit = hashStr(s.base + '·ud') % 3; sceneReset();
   fxSongMode = FX_AUTO[hashStr(s.base + '·fx') % FX_AUTO.length]; fx = null; updFxBtn();   // scenens udgang: 0 falder ned, 1 eksploderer, 2 suges ind   // ordenes indgang: 0 stiger op, 1 falder ned, 2 zoomer ind
@@ -1360,15 +1452,19 @@ $('#btnView').addEventListener('click', () => setView(!viewScene));
 /* ---------- Effekter i scenevisningen ----------
    Tidsstyret og uden hukommelse: alt regnes ud fra sangens tid, så spoling altid passer.
    Hver linje kommer ind før den synges og står klar, når den starter. */
-const FX_MODES = ['auto','flyv','hop','haengsel','skub','zoom','blandet'];
-const FX_AUTO  = ['flyv','hop','haengsel','skub','zoom','blandet'];
-const FX_NAMES = {auto:'automatisk', flyv:'flyv', hop:'hop', haengsel:'hængsel', skub:'skub', zoom:'zoom', blandet:'blandet'};
+const FX_MODES = ['auto','flyv','hop','haengsel','skub','zoom','roeg','skrivemaskine','tavle','magnet','blandet'];
+const FX_AUTO  = ['flyv','hop','haengsel','skub','zoom','roeg','skrivemaskine','tavle','magnet','blandet'];
+const FX_NAMES = {auto:'automatisk', flyv:'flyv', hop:'hop', haengsel:'hængsel', skub:'skub', zoom:'zoom', roeg:'røg', skrivemaskine:'skrivemaskine', tavle:'tavle', magnet:'magnet', blandet:'blandet'};
 const FX_ICONS = {
   flyv:'<path d="M3 12h6M15 12h6M6 8l4 4-4 4M18 8l-4 4 4 4"/>',
   hop:'<path d="M3 20h18"/><path d="M4 17c1.5-9 4-9 5.5 0c1-5 3-5 4 0c.7-3 2-3 2.7 0"/>',
   haengsel:'<circle cx="18" cy="5" r="1.8"/><path d="M18 7v13"/><path d="M4 5h10" stroke-dasharray="2 2.5"/>',
   skub:'<rect x="3" y="8" width="7" height="8" rx="1.5"/><rect x="14" y="8" width="7" height="8" rx="1.5" transform="rotate(10 17.5 12)"/><path d="M10.5 12h2.5"/>',
   zoom:'<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5M8 10.5h5M10.5 8v5"/>',
+  roeg:'<path d="M8 21c-2.5-2 0-4 1.5-5.5s1.5-4-.5-6M14.5 21c-2.5-2 0-4 1.5-5.5s1.5-4-.5-6M11 7c-1-1.5 0-3 1-4"/>',
+  skrivemaskine:'<path d="M4 8h12M4 13h8"/><path d="M15 10.5v6"/><path d="M4 18h16"/>',
+  tavle:'<rect x="3.5" y="5" width="7.5" height="14" rx="1.5"/><rect x="13" y="5" width="7.5" height="14" rx="1.5"/><path d="M3.5 12h7.5M13 12h7.5"/>',
+  magnet:'<path d="M6 4v8a6 6 0 0 0 12 0V4"/><path d="M6 8h4M14 8h4"/>',
   blandet:'<rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r=".9" fill="currentColor"/><circle cx="15" cy="15" r=".9" fill="currentColor"/><circle cx="15" cy="9" r=".9" fill="currentColor"/><circle cx="9" cy="15" r=".9" fill="currentColor"/>'
 };
 let fxPick = 'auto'; try { fxPick = localStorage.getItem('ksv-fx') || 'auto'; } catch(e){}
@@ -1399,19 +1495,23 @@ function fxBuild(){
   items.forEach((it,k) => {
     const nx = items[k+1]; it.nextReal = !!(nx && Math.abs(nx.t - it.end) < .001);
     const prev = items[k-1]; it.enter = clamp(prev ? (it.t - prev.t)*.55 : 1.1, .35, 1.1);
-    it.ent = mode === 'blandet' ? ['hop','rise','slide','emerge'][Math.floor(rndK(k,'ind')*4)] : {hop:'hop', haengsel:'rise', skub:'slide', zoom:'emerge'}[mode];
+    const ENTS = ['hop','rise','slide','emerge','type','flip','gather'];
+    it.ent = mode === 'blandet' ? ENTS[Math.floor(rndK(k,'ind')*ENTS.length)]
+           : {hop:'hop', haengsel:'rise', skub:'slide', zoom:'emerge', roeg:'rise', skrivemaskine:'type', tavle:'flip', magnet:'gather'}[mode];
   });
   items.forEach((it,k) => {
     const n = it.nextReal ? items[k+1].ent : null;
+    const EXITS = ['hinge','drop','smoke','erase','flipout','shatter'];
     it.ex = n === 'slide' ? 'pushed' : n === 'emerge' ? 'zoom'
-          : mode === 'haengsel' ? 'hinge' : mode === 'blandet' ? (rndK(k,'ud') < .5 ? 'hinge' : 'drop') : 'drop';
+          : mode === 'blandet' ? EXITS[Math.floor(rndK(k,'ud')*EXITS.length)]
+          : {haengsel:'hinge', roeg:'smoke', skrivemaskine:'erase', tavle:'flipout', magnet:'shatter'}[mode] || 'drop';
   });
   fx = {items, mode, lines, dur, cache:{}, push:{}};
 }
 function fxLay(k){
   if (fx.cache[k]) return fx.cache[k];
   const it = fx.items[k];
-  let px = sFont().px; const maxW = Math.min(sW*.86, sW - 24);
+  let px = sFont().px; const maxW = Math.min(sW*.84, sW - 48);
   const words = it.text.split(/\s+/).filter(Boolean);
   let rows, bw, lh, gap;
   const doLayout = () => {
@@ -1424,17 +1524,20 @@ function fxLay(k){
   rows.forEach((r,ri) => { const tot = r.reduce((a,o) => a + o.w, 0) + gap*(r.length-1); let x = -tot/2; r.forEach(o => { ws.push({t:o.t, w:o.w, x:x + o.w/2, y:-bh/2 + lh/2 + ri*lh}); x += o.w + gap; }); });
   // placering
   let cx = sCX, cy = sCY, r = 0, side = rndK(k,'side') < .5 ? 'L' : 'R', isUpper = false;
-  if (it.ent === 'hop' || it.ent === 'rise'){
+  if (['hop','rise','type','flip','gather'].includes(it.ent)){
     const upper = k % 2 === 0, prev = k > 0 ? fxLay(k-1) : null;
     if (!upper && prev && prev.upper && fx.items[k-1].ex === 'hinge') side = prev.side === 'L' ? 'R' : 'L';
     cx = sCX + (side === 'L' ? -1 : 1)*sW*.1; cy = sCY + (upper ? -1 : 1)*sH*.17; r = (rndK(k,'skæv') - .5)*.08;
     isUpper = upper;
   }
-  cx = clamp(cx, bw/2 + 12, Math.max(bw/2 + 12, sW - bw/2 - 12)); cy = clamp(cy, bh/2 + 8, Math.max(bh/2 + 8, sH - bh/2 - 8));
+  const mx = bw*1.06/2 + 16, my = bh*1.06/2 + 10;   // plads til puls og skævhed
+  cx = clamp(cx, mx, Math.max(mx, sW - mx)); cy = clamp(cy, my, Math.max(my, sH - my));
   const zj = Math.floor(rndK(k,'zoomord')*ws.length), zw = ws[zj], zl = Math.floor(rndK(k,'zoombogstav')*zw.t.length);
   sg.font = '700 ' + px + 'px Sora, system-ui, sans-serif';
   const zx = zw.x - zw.w/2 + sg.measureText(zw.t.slice(0,zl)).width + sg.measureText(zw.t[zl] || 'o').width/2;
-  return fx.cache[k] = {ws, bw, bh, px, lh, cx, cy, r, side, upper: isUpper, dir: DIRS[Math.floor(rndK(k,'retning')*4)], zp:{x:zx, y:zw.y}};
+  // bogstaver til effekterne, der arbejder med enkelte bogstaver
+  const letters = []; ws.forEach((w,j) => { let pre = 0; [...w.t].forEach(ch => { const cw = sg.measureText(ch).width; letters.push({ch, x:w.x - w.w/2 + pre + cw/2, y:w.y, w:cw, j}); pre += cw; }); });
+  return fx.cache[k] = {ws, letters, bw, bh, px, lh, cx, cy, r, side, upper: isUpper, dir: DIRS[Math.floor(rndK(k,'retning')*4)], zp:{x:zx, y:zw.y}};
 }
 function fxSlideOff(k, T){
   const it = fx.items[k], l = fxLay(k), p = clamp((T - (it.t - it.enter))/it.enter, 0, 1), [dx,dy] = l.dir, e = 1 - eo3(p);
@@ -1465,11 +1568,70 @@ function fxText(l, list){
   sg.font = '700 ' + l.px + 'px Sora, system-ui, sans-serif'; sg.textAlign = 'center'; sg.textBaseline = 'middle';
   const glow = rgba(col1, .75);
   list.forEach(o => {
+    if (o.a <= 0) return;
     sg.save(); sg.globalAlpha = clamp(o.a, 0, 1); sg.translate(o.x, o.y); if (o.r) sg.rotate(o.r);
-    sg.shadowColor = 'rgba(0,0,0,.75)'; sg.shadowBlur = 14; sg.fillStyle = '#fff'; sg.fillText(o.t, 0, 0);
-    sg.shadowColor = glow; sg.shadowBlur = 12 + bassP*22; sg.fillText(o.t, 0, 0);
+    if (o.sx || o.sy) sg.scale(o.sx || 1, o.sy || 1);
+    if (o.cursor){ sg.shadowColor = glow; sg.shadowBlur = 10; sg.fillStyle = '#fff'; sg.fillRect(-l.px*.04, -l.px*.45, l.px*.08, l.px*.9); sg.restore(); return; }
+    if (o.smoke){   // røg: grålig, blød og opløst
+      sg.shadowColor = 'rgba(220,220,230,' + clamp(o.a, 0, 1)*.8 + ')'; sg.shadowBlur = 8 + o.smoke*40; sg.fillStyle = 'rgba(235,235,245,' + (1 - o.smoke*.7) + ')'; sg.fillText(o.t, 0, 0);
+    } else {
+      sg.shadowColor = 'rgba(0,0,0,.75)'; sg.shadowBlur = 14; sg.fillStyle = '#fff'; sg.fillText(o.t, 0, 0);
+      sg.shadowColor = glow; sg.shadowBlur = 12 + bassP*22; sg.fillText(o.t, 0, 0);
+    }
     sg.restore();
   });
+}
+const FLAP = 'ABCDEFGHIJKLMNOPRSTUVWXYZÆØÅ0123456789';
+const flapChar = (gi, T) => FLAP[hashStr(gi + ':' + Math.floor(T*22)) % FLAP.length];
+// Bogstav-effekter: returnerer en liste at tegne, eller null hvis effekten ikke gælder nu
+function fxLetters(k, l, it, T, es, xs){
+  const L = l.letters, n = L.length, out = [];
+  if (T < it.t && ['type','flip','gather'].includes(it.ent)){
+    const pe = clamp((T - es)/it.enter, 0, 1);
+    if (it.ent === 'type'){
+      const shown = Math.min(n, Math.ceil(pe*n));
+      L.forEach((c,gi) => { if (gi < shown) out.push({t:c.ch, x:c.x, y:c.y, a:1}); });
+      const last = L[Math.max(0, shown - 1)];
+      if (last && (T*3.5) % 1 < .65) out.push({cursor:true, x:shown ? last.x + last.w/2 + l.px*.1 : L[0].x - L[0].w/2, y:last.y, a:1});
+    } else if (it.ent === 'flip'){
+      L.forEach((c,gi) => {
+        const st = es + gi/Math.max(1,n)*it.enter*.6, lt = st + it.enter*.4;
+        if (T < st) return;
+        if (T < lt){ out.push({t:flapChar(gi, T), x:c.x, y:c.y, a:1, sy:.55 + .45*Math.abs(Math.cos(T*28 + gi))}); }
+        else out.push({t:c.ch, x:c.x, y:c.y, a:1});
+      });
+    } else {   // gather: bogstaverne samles fra hele skærmen
+      const d = Math.min(.012, it.enter*.3/Math.max(1,n)), du = Math.max(.3, it.enter - d*n);
+      L.forEach((c,gi) => {
+        const p = clamp((T - es - gi*d)/du, 0, 1), e = eo3(p);
+        const sx = (rndK(k, 'gx' + gi) - .5)*sW*1.1, sy = (rndK(k, 'gy' + gi) - .5)*sH*1.1, r0 = (rndK(k, 'gr' + gi) - .5)*5;
+        out.push({t:c.ch, x:c.x + sx*(1 - e), y:c.y + sy*(1 - e), a:Math.min(1, p*3), r:r0*(1 - e)});
+      });
+    }
+    return out;
+  }
+  if (T > xs && ['smoke','erase','flipout','shatter'].includes(it.ex)){
+    const tau = T - xs;
+    if (it.ex === 'smoke'){
+      L.forEach((c,gi) => {
+        const f = Math.max(0, tau - gi*.012), w = rndK(k, 'røg' + gi);
+        out.push({t:c.ch, x:c.x + Math.sin(f*2.5 + gi)*18*f + (w - .5)*30*f, y:c.y - (70*f + 60*f*f)*(.7 + w*.6), a:1 - f/1.3, sx:1 + f*.7, sy:1 + f*.7, smoke:Math.min(1, f*1.4)});
+      });
+    } else if (it.ex === 'erase'){
+      const left = n - Math.floor(clamp(tau/.45, 0, 1)*n);
+      L.forEach((c,gi) => { if (gi < left) out.push({t:c.ch, x:c.x, y:c.y, a:1}); });
+      if (tau < .7 && (T*3.5) % 1 < .65){ const c = L[Math.max(0, left - 1)]; if (c) out.push({cursor:true, x:left ? c.x + c.w/2 + l.px*.1 : c.x - c.w/2, y:c.y, a:1}); }
+    } else if (it.ex === 'flipout'){
+      L.forEach((c,gi) => { const st = gi/Math.max(1,n)*.4; if (tau < st) out.push({t:c.ch, x:c.x, y:c.y, a:1}); else if (tau < st + .3) out.push({t:flapChar(gi, T), x:c.x, y:c.y, a:1, sy:.55 + .45*Math.abs(Math.cos(T*28 + gi))}); });
+    } else {   // shatter: bogstaverne sprænges ud og falder
+      L.forEach((c,gi) => {
+        const ang = Math.atan2(c.y, c.x || .001) + (rndK(k, 'sa' + gi) - .5)*1.6, sp = 200 + rndK(k, 'ss' + gi)*380;
+        out.push({t:c.ch, x:c.x + Math.cos(ang)*sp*tau, y:c.y + Math.sin(ang)*sp*tau + 700*tau*tau, a:1 - tau/1.3, r:(rndK(k, 'sr' + gi) - .5)*14*tau});
+      });
+    }
+    return out;
+  }
+  return null;
 }
 function drawFx(T){
   if (!fx || fx.lines !== lines || fx.mode !== fxMode() || fx.dur !== audio.duration) fxBuild();
@@ -1524,12 +1686,18 @@ function drawFx(T){
       fxText(l, l.ws.map(w => ({t:w.t, x:w.x, y:w.y, a:alpha})));
     } else {
       sg.translate(l.cx + ox, l.cy + oy); sg.rotate(rot); sg.scale(sc, sc);
+      const lettersNow = fxLetters(k, l, it, T, es, xs);
+      if (lettersNow){ fxText(l, lettersNow.map(o => ({...o, a:(o.a == null ? 1 : o.a)*alpha}))); sg.restore(); continue; }
       const list = []; l.ws.forEach((w,j) => { if (per){ const o = per(j); if (o) list.push({t:w.t, x:w.x + o.dx, y:w.y + o.dy, a:o.a*alpha, r:o.r}); } else list.push({t:w.t, x:w.x, y:w.y, a:alpha}); });
       fxText(l, list);
     }
     sg.restore();
   }
 }
+
+// Når skrifttypen er hentet, måles teksten igen – ellers kan linjerne blive bredere end målt og gå ud over kanten
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (fx) fx.cache = {}; sLayout(false); });
+if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', () => { if (fx) fx.cache = {}; sLayout(false); });
 
 try { if (localStorage.getItem('ksv-view') === 'scene') setView(true, true); } catch(e){}
 
@@ -1554,7 +1722,7 @@ function frame(ms){
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.11';
+const VERSION = '1.12';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
 requestAnimationFrame(frame);
 (async function init(){

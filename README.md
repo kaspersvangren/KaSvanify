@@ -62,7 +62,7 @@ Siden kan også læse `.srt`-filer med samme navn, hvis der ikke er en `.lrc`.
 Knappen med T'et nederst til højre skifter mellem rullende tekst og scenevisning, hvor kun den aktuelle linje vises,
 og ordene flyver ind og ud. Siden husker valget i browseren.
 
-I scenevisningen viser knappen ved siden af T'et, hvilken effekt der bruges: flyv, hop, hængsel, skub, zoom eller blandet.
+I scenevisningen viser knappen ved siden af T'et, hvilken effekt der bruges: flyv, hop, hængsel, skub, zoom, røg, skrivemaskine, tavle, magnet eller blandet.
 Klik for at skifte. Står der et lille A på knappen, er effekten valgt automatisk ud fra sangens navn.
 Alle effekter er lavet, så linjen står klar, når den synges.
 
