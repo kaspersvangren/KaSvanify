@@ -27,8 +27,10 @@ Filnavnene skal passe præcist med det, der står i `sange.js` – også store o
 
 ## Tilføj en sang
 
-1. Læg mp3 og cover i den rigtige mappe under `sange`.
-2. Skriv navnet ind i `sange.js` som `"Kunstner - Titel"` (uden .mp3).
+Læg mp3 og cover (samme navn, `.jpg` eller `.png`) i en mappe under `sange` – så dukker sangen op af sig selv.
+En ny mappe under `sange` bliver en ny samling.
+
+I `sange.js` kan du bestemme rækkefølgen og give samlingerne pænere navne. Sange, der ikke står der, kommer sidst i alfabetisk orden.
 
 ## Lav teksten med tap
 

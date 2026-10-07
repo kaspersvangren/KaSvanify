@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- KaSvanify v1.3 -->
+<!-- KaSvanify v1.4 -->
 <html lang="da">
 <head>
 <meta charset="utf-8">
@@ -366,20 +366,72 @@ async function fetchText(url){
   try { const r = await fetch(url, {cache:'no-cache'}); if (!r.ok) return null; return await r.text(); } catch(e){ return null; }
 }
 
-/* ---------- Sangliste ---------- */
+/* ---------- Sangliste ----------
+   Online henter siden selv fillisten fra GitHub, så nye mp3-filer under sange/<mappe>/ dukker op af sig selv.
+   sange.js bestemmer kun rækkefølgen og navnene på samlingerne. Virker GitHub ikke, bruges sange.js som før. */
 const songs = []; const usedSlugs = new Set();
-SAML.forEach(c => (c.sange || []).forEach(base => {
-  base = String(base).trim(); if (!base) return;
-  const k = base.indexOf(' - ');
-  const artist = k > 0 ? base.slice(0,k).trim() : '';
-  const title  = k > 0 ? base.slice(k+3).trim() : base;
-  const f = encPath(c.mappe || 'sange') + '/' + encodeURIComponent(base);
-  let slug = slugify(title);
-  if (usedSlugs.has(slug)) slug = slugify(artist + '-' + title);
-  let n = 2; const s0 = slug; while (usedSlugs.has(slug)) slug = s0 + '-' + (n++);
-  usedSlugs.add(slug);
-  songs.push({ base, artist, title, coll:c, slug, mp3:f+'.mp3', jpg:f+'.jpg', png:f+'.png', lrc:f+'.lrc', srt:f+'.srt' });
-}));
+let COLLS = [];
+function repoName(){
+  if (typeof GITHUB_REPO !== 'undefined' && GITHUB_REPO) return String(GITHUB_REPO);
+  const h = location.hostname; if (!h.endsWith('.github.io')) return null;
+  const owner = h.split('.')[0], seg = location.pathname.split('/').filter(Boolean)[0];
+  return owner + '/' + (seg && !/\.html?$/i.test(seg) ? seg : owner + '.github.io');
+}
+async function fetchRepoFiles(){
+  const repo = repoName(); if (!repo || LOCAL_FILE) return null;
+  try {
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 6000);
+    const r = await fetch('https://api.github.com/repos/' + repo + '/git/trees/HEAD?recursive=1', {signal:ctl.signal, headers:{Accept:'application/vnd.github+json'}});
+    clearTimeout(to); if (!r.ok) return null;
+    const j = await r.json(); if (!Array.isArray(j.tree)) return null;
+    return j.tree.filter(x => x.type === 'blob').map(x => x.path);
+  } catch(e){ return null; }
+}
+const prettyName = d => { d = d.replace(/[-_]+/g,' ').trim(); return d.charAt(0).toUpperCase() + d.slice(1); };
+function buildCollections(paths){
+  const base = SAML.map(c => ({...c, mappe:String(c.mappe || 'sange').replace(/\/+$/,''), sange:(c.sange || []).map(x => String(x).trim()).filter(Boolean)}));
+  if (!paths) return base;
+  const byDir = new Map();
+  paths.forEach(p => {
+    const k = p.lastIndexOf('/'); if (k < 0) return;
+    const dir = p.slice(0,k), f = p.slice(k+1), parts = dir.split('/');
+    if (parts.length !== 2 || parts[0] !== 'sange') return;
+    if (!byDir.has(dir)) byDir.set(dir, new Map());
+    byDir.get(dir).set(f.toLowerCase(), f);
+  });
+  const known = new Map(base.map(c => [c.mappe, c]));
+  const dirs = base.map(c => c.mappe).filter(d => byDir.has(d))
+    .concat([...byDir.keys()].filter(d => !known.has(d)).sort((a,b) => a.localeCompare(b,'da')));
+  return dirs.map(dir => {
+    const files = byDir.get(dir), name = dir.split('/')[1];
+    const c = known.get(dir) || {id:name, navn:prettyName(name), mappe:dir, sange:[]};
+    const mp3s = [...files.values()].filter(f => /\.mp3$/i.test(f)).map(f => f.replace(/\.mp3$/i,''));
+    const have = new Set(mp3s);
+    const order = c.sange.filter(b => have.has(b)).concat(mp3s.filter(b => !c.sange.includes(b)).sort((a,b) => a.localeCompare(b,'da')));
+    const grund = c.grundtekst || (files.has('grundtekst.txt') ? files.get('grundtekst.txt') : undefined);
+    return {...c, grundtekst:grund, sange:order, files};
+  }).filter(c => c.sange.length);
+}
+function buildSongs(colls){
+  songs.length = 0; usedSlugs.clear();
+  colls.forEach(c => c.sange.forEach(base => {
+    const k = base.indexOf(' - ');
+    const artist = k > 0 ? base.slice(0,k).trim() : '';
+    const title  = k > 0 ? base.slice(k+3).trim() : base;
+    const dir = encPath(c.mappe), f = dir + '/' + encodeURIComponent(base);
+    let slug = slugify(title);
+    if (usedSlugs.has(slug)) slug = slugify(artist + '-' + title);
+    let n = 2; const s0 = slug; while (usedSlugs.has(slug)) slug = s0 + '-' + (n++);
+    usedSlugs.add(slug);
+    if (c.files){
+      const pick = exts => { for (const e of exts){ const hit = c.files.get((base + '.' + e).toLowerCase()); if (hit) return dir + '/' + encodeURIComponent(hit); } return null; };
+      const img = pick(['jpg','jpeg','png','webp']);
+      songs.push({ base, artist, title, coll:c, slug, mp3:pick(['mp3']), jpg:img, png:img, lrc:pick(['lrc']), srt:pick(['srt']) });
+    } else {
+      songs.push({ base, artist, title, coll:c, slug, mp3:f+'.mp3', jpg:f+'.jpg', png:f+'.png', lrc:f+'.lrc', srt:f+'.srt' });
+    }
+  }));
+}
 
 /* ---------- Tilstand ---------- */
 const audio = $('#audio');
@@ -519,6 +571,41 @@ const VARIANTS = [
         g.lineWidth = 1.4*u; g.strokeStyle = rgba(col1,.8); g.stroke();
       }
   }},
+  { name:'Ringe', draw(P){
+      const {cx,cy,R,maxL,t,u} = P, n = 90, ranges = [[0,30],[26,58],[54,86],[82,118]];
+      g.clearRect(0,0,P.w,P.h); g.globalCompositeOperation = 'lighter';
+      for (let ring = 0; ring < 4; ring++){
+        const [b0,b1] = ranges[ring], rr = R + maxL*(.08 + ring*.22), rot = t*.06*(ring % 2 ? 1 : -1), pts = [];
+        for (let k = 0; k < n; k++){
+          const half = k < n/2 ? k : n-1-k;
+          const v = Math.max(bands[b0 + Math.floor(half/(n/2)*(b1-b0))], idle(k+ring*9,t));
+          const a = -Math.PI/2 + k/n*Math.PI*2 + rot, r = rr + v*maxL*.16;
+          pts.push([cx+Math.cos(a)*r, cy+Math.sin(a)*r]);
+        }
+        const c = mix(col1, col2, ring/3);
+        closedCurve(pts); g.strokeStyle = rgba(c,.18); g.lineWidth = (5 + ring)*u; g.stroke();
+        g.strokeStyle = rgba(c,.9); g.lineWidth = (1.4 + ring*.35)*u; g.stroke();
+      }
+  }},
+  { name:'Blomst', draw(P){
+      const {cx,cy,R,maxL,t,u} = P;
+      g.clearRect(0,0,P.w,P.h); g.globalCompositeOperation = 'lighter';
+      const layer = (petals, off, b0, span, reach, c, alpha) => {
+        const n = petals*24, pts = [];
+        for (let k = 0; k < n; k++){
+          const a = -Math.PI/2 + k/n*Math.PI*2 + off;
+          const loc = (k % 24)/24, tri = 1 - Math.abs(2*loc - 1);
+          const v = Math.max(bands[b0 + Math.floor(tri*span)], .06 + .03*Math.sin(t*1.5 + k*.1));
+          const r = R + 3*u + maxL*reach*Math.pow(tri, 1.4)*(.25 + v*.75);
+          pts.push([cx+Math.cos(a)*r, cy+Math.sin(a)*r]);
+        }
+        const gr = g.createRadialGradient(cx,cy,R*.9,cx,cy,R+maxL*reach);
+        gr.addColorStop(0, rgba(c,alpha)); gr.addColorStop(1, rgba(c,0));
+        closedCurve(pts); g.fillStyle = gr; g.fill(); g.strokeStyle = rgba(c,.85); g.lineWidth = 1.6*u; g.stroke();
+      };
+      layer(8, t*.05, 0, 50, .95, col1, .5);
+      layer(8, Math.PI/8 - t*.07, 40, 70, .7, col2, .45);
+  }},
   { name:'Prikker', draw(P){
       const {cx,cy,R,maxL,t,u} = P;
       g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,.24)'; g.fillRect(0,0,P.w,P.h);
@@ -570,9 +657,9 @@ async function loadLyrics(s){
   renderLyrics(null, true);
   let L = lyr.get(s.base);
   if (L === undefined){
-    let txt = await fetchText(s.lrc);
+    let txt = s.lrc ? await fetchText(s.lrc) : null;
     if (txt) L = {lines:parseLRC(txt)};
-    else { txt = await fetchText(s.srt); L = txt ? {lines:parseSRT(txt)} : null; }
+    else { txt = s.srt ? await fetchText(s.srt) : null; L = txt ? {lines:parseSRT(txt)} : null; }
     if (L && !L.lines.length) L = null;
     if (!LOCAL_FILE) lyr.set(s.base, L);
   }
@@ -625,15 +712,17 @@ const cover = $('#cover');
 cover.addEventListener('load', () => { $('#bg').style.backgroundImage = `url("${cover.src}")`; setColors(extractColors(cover)); });
 cover.addEventListener('error', () => {
   const s = songs[cur]; if (!s) return;
-  if (cover.dataset.try === 'jpg'){ cover.dataset.try = 'png'; cover.src = s.png; $('#startCover').src = s.png; }
+  if (cover.dataset.try === 'jpg' && s.png && s.png !== s.jpg){ cover.dataset.try = 'png'; cover.src = s.png; $('#startCover').src = s.png; }
   else { cover.removeAttribute('src'); $('#bg').style.backgroundImage = 'none'; setColors(DEFAULT_COLORS); }
 });
 
 function loadSong(i, play){
   if (!songs.length) return;
   cur = (i + songs.length) % songs.length; const s = songs[cur];
-  audio.src = s.mp3;
-  cover.dataset.try = 'jpg'; cover.src = s.jpg; $('#startCover').src = s.jpg;
+  if (s.mp3) audio.src = s.mp3; else audio.removeAttribute('src');
+  cover.dataset.try = 'jpg';
+  if (s.jpg){ cover.src = s.jpg; $('#startCover').src = s.jpg; }
+  else { cover.removeAttribute('src'); $('#startCover').removeAttribute('src'); $('#bg').style.backgroundImage = 'none'; setColors(DEFAULT_COLORS); }
   $('#npTitle').textContent = s.title;
   $('#npArtist').textContent = (s.artist ? s.artist + ' · ' : '') + s.coll.navn;
   $('#startTitle').textContent = s.title; $('#startArtist').textContent = s.artist;
@@ -683,7 +772,7 @@ function updateMediaSession(s){
   if (!('mediaSession' in navigator)) return;
   try {
     navigator.mediaSession.metadata = new MediaMetadata({ title:s.title, artist:s.artist, album:s.coll.navn,
-      artwork:[{src:new URL(s.jpg, location.href).href, sizes:'512x512', type:'image/jpeg'}] });
+      artwork: s.jpg ? [{src:new URL(s.jpg, location.href).href, sizes:'512x512'}] : [] });
     navigator.mediaSession.setActionHandler('play', doPlay);
     navigator.mediaSession.setActionHandler('pause', () => audio.pause());
     navigator.mediaSession.setActionHandler('previoustrack', () => step(-1));
@@ -711,13 +800,13 @@ window.addEventListener('hashchange', () => {
 /* ---------- Skuffe med sange ---------- */
 function buildList(){
   const box = $('#songList'); box.innerHTML = '';
-  SAML.forEach(c => {
+  COLLS.forEach(c => {
     const ss = songs.filter(s => s.coll === c); if (!ss.length) return;
     const h = document.createElement('h3'); h.textContent = c.navn; box.appendChild(h);
     ss.forEach(s => {
       const b = document.createElement('button'); b.className = 'row-song'; b.dataset.i = songs.indexOf(s);
       b.innerHTML = '<img loading="lazy" alt=""><span><b></b><small></small></span>';
-      const im = b.querySelector('img'); im.src = s.jpg; im.onerror = () => { im.onerror = null; im.src = s.png; };
+      const im = b.querySelector('img'); if (s.jpg){ im.src = s.jpg; im.onerror = () => { im.onerror = null; if (s.png !== s.jpg) im.src = s.png; }; }
       b.querySelector('b').textContent = s.title; b.querySelector('small').textContent = s.artist;
       b.addEventListener('click', () => { loadSong(+b.dataset.i, true); closePanels(); });
       box.appendChild(b);
@@ -922,14 +1011,14 @@ $('#openList').addEventListener('click', () => openPanel('#drawer'));
 function buildHome(){
   const box = $('#homeGrid'); box.innerHTML = '';
   $('#homeSub').textContent = songs.length ? songs.length + (songs.length === 1 ? ' sang' : ' sange') : 'Ingen sange endnu – skriv dem ind i sange.js';
-  SAML.forEach(c => {
+  COLLS.forEach(c => {
     const ss = songs.filter(s => s.coll === c); if (!ss.length) return;
     const h = document.createElement('h2'); h.textContent = c.navn; box.appendChild(h);
     const grid = document.createElement('div'); grid.className = 'grid';
     ss.forEach(s => {
       const b = document.createElement('button'); b.className = 'card'; b.dataset.i = songs.indexOf(s);
       b.innerHTML = '<div class="art"><img loading="lazy" alt=""><span class="playbadge"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span></div><b></b><small></small>';
-      const im = b.querySelector('img'); im.src = s.jpg; im.onerror = () => { im.onerror = null; im.src = s.png; };
+      const im = b.querySelector('img'); if (s.jpg){ im.src = s.jpg; im.onerror = () => { im.onerror = null; if (s.png !== s.jpg) im.src = s.png; }; }
       b.querySelector('b').textContent = s.title; b.querySelector('small').textContent = s.artist;
       b.addEventListener('click', () => { const i = +b.dataset.i; hideHome(); if (i === cur){ if (audio.paused) doPlay(); } else loadSong(i, true); });
       grid.appendChild(b);
@@ -995,14 +1084,21 @@ function frame(ms){
 }
 
 /* ---------- Start ---------- */
-const VERSION = '1.3';
+const VERSION = '1.4';
 $('#vtag').textContent = 'v' + VERSION; $('#verLine').textContent = 'KaSvanify v' + VERSION;
-buildList(); buildHome();
-const fromLink = songs.findIndex(s => s.slug === location.hash.slice(1));
-if (fromLink >= 0){ $('#startKicker').textContent = 'Delt med dig'; loadSong(fromLink, false); }
-else showHome();
-if (LOCAL_FILE) setTimeout(() => toast('Åbnet som fil: Visualisering og tekst virker først, når siden ligger online', 6000), 400);
 requestAnimationFrame(frame);
+(async function init(){
+  const linked = location.hash.slice(1);
+  if (!linked){ $('#start').classList.add('gone'); $('#home').hidden = false; document.body.classList.add('at-home'); $('#homeSub').textContent = 'Henter sange …'; }
+  const files = await fetchRepoFiles();
+  COLLS = buildCollections(files);
+  if (!files && repoName()) console.warn('KaSvanify: kunne ikke hente fillisten fra GitHub – bruger sange.js');
+  buildSongs(COLLS); buildList(); buildHome();
+  const fromLink = songs.findIndex(s => s.slug === location.hash.slice(1));
+  if (fromLink >= 0){ $('#startKicker').textContent = 'Delt med dig'; loadSong(fromLink, false); }
+  else showHome();
+  if (LOCAL_FILE) setTimeout(() => toast('Åbnet som fil: Visualisering og tekst virker først, når siden ligger online', 6000), 400);
+})();
 })();
 </script>
 </body>

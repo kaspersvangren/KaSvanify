@@ -1,14 +1,14 @@
 // KaSvanify – sangliste
 //
-// Hver sang skrives som "Kunstner - Titel" – præcis som filnavnet, bare uden .mp3.
-// I sangens mappe skal der ligge:
-//   "Kunstner - Titel.mp3"   lyden
-//   "Kunstner - Titel.jpg"   coveret (.png virker også)
-//   "Kunstner - Titel.lrc"   teksten med tider (laves i tap-tilstanden på siden)
-// Store og små bogstaver skal passe præcist – GitHub skelner mellem dem.
+// Siden finder selv sangene: Hver mappe under "sange" er en samling, og hver mp3-fil i den er en sang.
+// Upload bare "Kunstner - Titel.mp3" og et cover med samme navn (.jpg eller .png), så dukker sangen op.
+// Teksten ("Kunstner - Titel.lrc") laves i tap-tilstanden på siden.
 //
-// "grundtekst" er valgfri: en almindelig tekstfil i samlingens mappe,
-// som tap-tilstanden kan hente som udgangspunkt for alle sange i samlingen.
+// Listen nedenfor er valgfri og bestemmer kun:
+//   - samlingernes navn og rækkefølge (mapper, der ikke står her, kommer bagefter med mappenavnet)
+//   - sangenes rækkefølge (sange, der ikke står her, kommer sidst i alfabetisk orden)
+//   - "grundtekst": tekstfil i samlingens mappe, som tap-tilstanden bruger som udgangspunkt
+//     (en fil, der hedder grundtekst.txt, bliver også fundet af sig selv)
 
 // Kode til tap-tilstanden (hold på KaSvanify-logoet i et sekund for at åbne den).
 // Skift den til din egen. Sæt den til "" for at slå koden fra.
