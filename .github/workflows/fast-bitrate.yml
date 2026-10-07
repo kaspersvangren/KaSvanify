@@ -1,0 +1,54 @@
+name: Fast bitrate på nye sange
+
+# Når der uploades mp3-filer under sange/, bliver filer med variabel bitrate
+# lavet om til fast bitrate (256 kbps), så teksten også passer efter spoling.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sange/**.mp3"
+      - "sange/**.MP3"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: fast-bitrate
+  cancel-in-progress: false
+
+jobs:
+  cbr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Konverter variabel bitrate til fast
+        run: python3 .github/scripts/cbr.py sange
+
+      - name: Gem ændringerne
+        id: commit
+        run: |
+          if [ -z "$(git status --porcelain sange)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sange
+          git commit -m "Fast bitrate på nye mp3-filer"
+          git pull --rebase
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # Commits fra en workflow starter ikke selv en ny udgivelse af siden, så den bestilles her
+      - name: Udgiv siden igen
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "Kunne ikke starte en ny udgivelse – den kommer med næste ændring."

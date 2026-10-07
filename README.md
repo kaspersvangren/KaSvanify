@@ -30,6 +30,9 @@ Filnavnene skal passe præcist med det, der står i `sange.js` – også store o
 Læg mp3 og cover (samme navn, `.jpg` eller `.png`) i en mappe under `sange` – så dukker sangen op af sig selv.
 En ny mappe under `sange` bliver en ny samling.
 
+Mp3-filer med variabel bitrate bliver automatisk lavet om til fast bitrate (256 kbps) af GitHub et par minutter efter upload
+(se fanen **Actions**). Det er nødvendigt, for ellers rammer browseren ved siden af, når man spoler, og teksten kommer forkert.
+
 I `sange.js` kan du bestemme rækkefølgen og give samlingerne pænere navne. Sange, der ikke står der, kommer sidst i alfabetisk orden.
 
 ## Lav teksten med tap
